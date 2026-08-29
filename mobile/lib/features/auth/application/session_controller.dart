@@ -29,6 +29,7 @@ class SessionController extends ChangeNotifier {
   SessionUser? user;
   String? _token;
   String? errorMessage;
+  String? get token => _token;
 
   Future<void> restore() async {
     status = SessionStatus.loading;

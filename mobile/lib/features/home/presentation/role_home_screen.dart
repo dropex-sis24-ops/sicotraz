@@ -2,12 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../auth/application/session_controller.dart';
+import '../../admin/presentation/catalog_management_screen.dart';
+import '../../admin/presentation/user_management_screen.dart';
+import '../../stock/presentation/stock_load_screen.dart';
+import '../../stock/presentation/stock_verification_screen.dart';
 
 class RoleHomeScreen extends StatelessWidget {
   const RoleHomeScreen({super.key});
 
   static const _actions = {
-    'Super Admin': ['Dashboard', 'Gestión de usuarios', 'Gestión de catálogo'],
+    'Super Admin': [
+      'Dashboard',
+      'Gestión de usuarios',
+      'Gestión de catálogo',
+      'Carga de stock inicial',
+    ],
     'Encargado de Ropería y Lavandería': [
       'Lista del día',
       'Alertas pendientes',
@@ -15,7 +24,7 @@ class RoleHomeScreen extends StatelessWidget {
       'Dashboard',
     ],
     'Ropera': ['Registrar Quirófano', 'Capturar formulario', 'Registro manual'],
-    'Personal manual': ['Ver última lista', 'Reportar'],
+    'Personal manual': ['Verificar turno', 'Ver última lista', 'Reportar'],
     'Costura': ['Dar de baja prenda', 'Mis bajas recientes'],
   };
 
@@ -54,13 +63,33 @@ class RoleHomeScreen extends StatelessWidget {
               child: ListTile(
                 title: Text(action),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '$action se implementará en su módulo correspondiente.',
-                    ),
-                  ),
-                ),
+                onTap: () {
+                  if (action == 'Carga de stock inicial') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const StockLoadScreen(),
+                      ),
+                    );
+                  } else if (action == 'Gestión de usuarios') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const UserManagementScreen(),
+                      ),
+                    );
+                  } else if (action == 'Gestión de catálogo') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CatalogManagementScreen(),
+                      ),
+                    );
+                  } else if (action == 'Verificar turno') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const StockVerificationScreen(),
+                      ),
+                    );
+                  }
+                },
               ),
             ),
         ],

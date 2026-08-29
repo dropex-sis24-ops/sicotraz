@@ -17,7 +17,7 @@ class AuthController
         ]);
 
         $usuario = Usuario::query()
-            ->with('rol')
+            ->with(['rol', 'area'])
             ->where('numero_item', $credentials['numero_item'])
             ->first();
 
@@ -85,7 +85,7 @@ class AuthController
 
         return response()->json([
             'message' => 'Contraseña actualizada correctamente.',
-            'usuario' => $this->usuarioResponse($usuario->load('rol')),
+            'usuario' => $this->usuarioResponse($usuario->load(['rol', 'area'])),
         ]);
     }
 
@@ -110,6 +110,8 @@ class AuthController
             'nombre' => $usuario->nombre,
             'numero_item' => $usuario->numero_item,
             'rol' => $usuario->rol?->nombre,
+            'area_id' => $usuario->area_id,
+            'area_nombre' => $usuario->area?->nombre,
             'debe_cambiar_password' => $usuario->debe_cambiar_password,
         ];
     }

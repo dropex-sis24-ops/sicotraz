@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('alias_normalizado');
             $table->boolean('activo')->default(true);
             $table->timestamps();
-            
+
             $table->foreign('area_id')->references('id')->on('area');
         });
     }

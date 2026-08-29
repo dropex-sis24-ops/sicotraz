@@ -23,7 +23,7 @@ return new class extends Migration
             $table->integer('intentos_fallidos')->default(0);
             $table->timestamp('bloqueado_hasta')->nullable();
             $table->timestamps();
-            
+
             $table->foreign('rol_id')->references('id')->on('rol');
         });
     }

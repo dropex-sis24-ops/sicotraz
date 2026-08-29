@@ -264,6 +264,8 @@ No existe un número oficial de cuántas prendas corresponden a cada área — e
 - Para pruebas del sistema: **stock inicial de prueba**, con datos representativos para 1–2 tipos de prenda en las **2 áreas piloto confirmadas: Cirugía Varones y Quirófano**.
 - El sistema debe incluir **"Carga de inventario inicial"**, operable solo por el Super Admin, para que el hospital cargue los números reales cuando haga su propio conteo físico.
 
+**Datos de validación del Sprint 1 (no son inventario oficial):** Cirugía Varones inicia con 40 Sábanas Superiores y 40 Fundas. Quirófano inicia con 30 Campos Grandes; las demás prendas quirúrgicas tienen valores de prueba fijos entre 25 y 55. Estos datos permiten probar carga y verificación; el Super Admin podrá ajustarlos tras el conteo físico real.
+
 ---
 
 ## 6. Requerimientos funcionales (RF)
@@ -475,11 +477,11 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 - [x] Repositorio Git inicializado (sección 26.5).
 
 **Sprint 1 — completo cuando:**
-- [ ] HU01, HU02, HU23, HU26 cumplen sus criterios de aceptación (sección 8).
-- [ ] HU06, HU07 cumplen sus criterios de aceptación.
-- [ ] Login funciona de extremo a extremo (Flutter → `POST /api/login` → token recibido y guardado).
-- [ ] Los 5 roles existen en el sistema y cada uno ve su Home correspondiente (Pantalla 3).
-- [ ] Stock piloto cargado para Cirugía Varones y Quirófano (sección 5).
+- [x] HU01, HU02, HU23, HU26 cumplen sus criterios de aceptación (sección 8).
+- [x] HU06, HU07 cumplen sus criterios de aceptación.
+- [x] Login funciona de extremo a extremo (Flutter → `POST /api/login` → token recibido y guardado).
+- [x] Los 5 roles existen en el sistema y cada uno ve su Home correspondiente (Pantalla 3).
+- [x] Stock piloto cargado para Cirugía Varones y Quirófano (sección 5).
 
 **Sprint 2 — completo cuando:**
 - [ ] HU10, HU11, HU12, HU13 cumplen sus criterios de aceptación.
@@ -1584,7 +1586,7 @@ Componente pequeño (barra o ícono), no una pantalla completa — aparece en la
 
 | Entidad | Atributos clave | Notas |
 |---|---|---|
-| **usuario** | id, nombre, numero_item (máx. 10 dígitos), carnet_identidad, password_hash, rol_id (FK), activo, debe_cambiar_password, intentos_fallidos, bloqueado_hasta | RF01, RF02, RF32–RF36, RF46 |
+| **usuario** | id, nombre, numero_item (máx. 10 dígitos), carnet_identidad, password_hash, rol_id (FK), area_id (FK, nullable), activo, debe_cambiar_password, intentos_fallidos, bloqueado_hasta | `area_id` es obligatoria para Personal manual y permite abrir automáticamente su verificación de turno; permanece vacía para los demás roles. RF01, RF02, RF32–RF36, RF46 |
 | **rol** | id, nombre | Los 5 roles fijos (sección 2) |
 | **area** | id, nombre, activo | Incluye las 11 áreas del catálogo OCR (sección 4.4) MÁS Quirófano. Piloto de stock activo: Cirugía Varones y Quirófano. `activo` permite desactivar sin borrar (RF42) |
 | **alias_area** | id, area_id (FK), alias_normalizado, activo | Variantes como C.V., CV, CIRUGIA VARONES o Cirugia Varones apuntan al área oficial; el Super Admin las administra. |

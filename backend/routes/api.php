@@ -30,8 +30,13 @@ Route::middleware(['auth:sanctum', 'role:Super Admin'])->group(function (): void
     Route::patch('/catalogo/areas/{area}', [CatalogoController::class, 'actualizarArea']);
     Route::post('/catalogo/areas/{area}/alias', [CatalogoController::class, 'crearAlias']);
     Route::patch('/catalogo/alias/{alias}', [CatalogoController::class, 'actualizarAlias']);
+    Route::get('/catalogo/plantillas', [CatalogoController::class, 'plantillas']);
+    Route::patch('/catalogo/plantillas/{plantilla}', [CatalogoController::class, 'actualizarPlantilla']);
     Route::post('/stock/carga-inicial', [StockController::class, 'cargaInicial']);
+    Route::get('/stock/area', [StockController::class, 'porArea']);
 });
 
-Route::middleware('auth:sanctum')->get('/stock/verificacion', [StockController::class, 'verificacion']);
-Route::middleware('auth:sanctum')->post('/stock/verificacion', [VerificacionStockController::class, 'store']);
+Route::middleware(['auth:sanctum', 'role:Personal manual'])->group(function (): void {
+    Route::get('/stock/verificacion', [StockController::class, 'verificacion']);
+    Route::post('/stock/verificacion', [VerificacionStockController::class, 'store']);
+});

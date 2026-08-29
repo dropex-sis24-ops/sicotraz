@@ -2,6 +2,7 @@
 
 namespace App\Domain\Usuarios\Http\Controllers;
 
+use App\Domain\Usuarios\Models\Rol;
 use App\Domain\Usuarios\Models\Usuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,7 +13,7 @@ class UsuarioController
 {
     public function index(Request $request): JsonResponse
     {
-        $usuarios = Usuario::query()->with('rol')
+        $usuarios = Usuario::query()->with(['rol', 'area'])
             ->when($request->string('buscar')->isNotEmpty(), function ($query) use ($request): void {
                 $buscar = $request->string('buscar')->toString();
                 $query->where(fn ($q) => $q->where('nombre', 'like', "%{$buscar}%")->orWhere('numero_item', 'like', "%{$buscar}%"));
@@ -28,12 +29,14 @@ class UsuarioController
             'numero_item' => ['required', 'regex:/^[0-9]{1,10}$/', 'unique:usuario,numero_item'],
             'carnet_identidad' => ['required', 'string', 'max:255'],
             'rol_id' => ['required', 'exists:rol,id'],
+            'area_id' => ['nullable', 'exists:area,id'],
         ]);
+        $this->validarAreaPersonalManual($data);
         $data['password_hash'] = Hash::make($data['carnet_identidad']);
         $data['debe_cambiar_password'] = true;
         $data['activo'] = true;
 
-        $usuario = Usuario::query()->create($data)->load('rol');
+        $usuario = Usuario::query()->create($data)->load(['rol', 'area']);
 
         return response()->json($usuario, 201);
     }
@@ -44,10 +47,12 @@ class UsuarioController
             'nombre' => ['sometimes', 'required', 'string', 'max:255'],
             'numero_item' => ['sometimes', 'required', 'regex:/^[0-9]{1,10}$/', Rule::unique('usuario', 'numero_item')->ignore($usuario->id)],
             'rol_id' => ['sometimes', 'required', 'exists:rol,id'],
+            'area_id' => ['sometimes', 'nullable', 'exists:area,id'],
         ]);
+        $this->validarAreaPersonalManual($data, $usuario);
         $usuario->update($data);
 
-        return response()->json($usuario->fresh()->load('rol'));
+        return response()->json($usuario->fresh()->load(['rol', 'area']));
     }
 
     public function desactivar(Usuario $usuario): JsonResponse
@@ -83,5 +88,17 @@ class UsuarioController
         $usuario->tokens()->delete();
 
         return response()->json(['message' => 'Contraseña restablecida correctamente.']);
+    }
+
+    /** @param array<string, mixed> $data */
+    private function validarAreaPersonalManual(array $data, ?Usuario $usuario = null): void
+    {
+        $rolId = $data['rol_id'] ?? $usuario?->rol_id;
+        $esPersonalManual = Rol::query()->whereKey($rolId)->value('nombre') === 'Personal manual';
+        $areaId = $data['area_id'] ?? $usuario?->area_id;
+
+        if ($esPersonalManual && $areaId === null) {
+            abort(422, 'El Personal manual debe tener un área asignada.');
+        }
     }
 }

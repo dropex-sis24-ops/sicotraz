@@ -3,7 +3,7 @@
 class DatabaseSchema {
   DatabaseSchema._();
 
-  static const version = 1;
+  static const version = 2;
 
   static const statements = <String>[
     '''CREATE TABLE rol (
@@ -19,13 +19,15 @@ class DatabaseSchema {
       carnet_identidad TEXT NOT NULL,
       password_hash TEXT NOT NULL,
       rol_id INTEGER NOT NULL,
+      area_id INTEGER,
       activo INTEGER NOT NULL DEFAULT 1,
       debe_cambiar_password INTEGER NOT NULL DEFAULT 0,
       intentos_fallidos INTEGER NOT NULL DEFAULT 0,
       bloqueado_hasta TEXT,
       created_at TEXT,
       updated_at TEXT,
-      FOREIGN KEY (rol_id) REFERENCES rol(id)
+      FOREIGN KEY (rol_id) REFERENCES rol(id),
+      FOREIGN KEY (area_id) REFERENCES area(id)
     )''',
     '''CREATE TABLE area (
       id INTEGER PRIMARY KEY,

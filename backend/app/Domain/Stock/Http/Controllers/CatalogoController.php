@@ -4,6 +4,7 @@ namespace App\Domain\Stock\Http\Controllers;
 
 use App\Domain\Stock\Models\AliasArea;
 use App\Domain\Stock\Models\Area;
+use App\Domain\Stock\Models\PlantillaFormulario;
 use App\Domain\Stock\Models\TipoPrenda;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ class CatalogoController
     {
         $p = TipoPrenda::query()->create($request->validate(['nombre' => ['required', 'string', 'max:255', 'unique:tipo_prenda,nombre']]));
 
-        return response()->json($p, 201);
+        return response()->json($p->fresh(), 201);
     }
 
     public function actualizarPrenda(Request $request, TipoPrenda $prenda): JsonResponse
@@ -32,14 +33,14 @@ class CatalogoController
 
     public function areas(): JsonResponse
     {
-        return response()->json(Area::query()->orderBy('nombre')->get());
+        return response()->json(Area::query()->with('aliases')->orderBy('nombre')->get());
     }
 
     public function crearArea(Request $request): JsonResponse
     {
         $a = Area::query()->create($request->validate(['nombre' => ['required', 'string', 'max:255', 'unique:area,nombre']]));
 
-        return response()->json($a, 201);
+        return response()->json($a->fresh(), 201);
     }
 
     public function actualizarArea(Request $request, Area $area): JsonResponse
@@ -66,6 +67,22 @@ class CatalogoController
         $alias->update($data);
 
         return response()->json($alias->fresh());
+    }
+
+    public function plantillas(): JsonResponse
+    {
+        return response()->json(PlantillaFormulario::query()->orderBy('nombre')->get());
+    }
+
+    public function actualizarPlantilla(Request $request, PlantillaFormulario $plantilla): JsonResponse
+    {
+        $data = $request->validate([
+            'estructura_campos' => ['sometimes', 'required', 'array'],
+            'activo' => ['sometimes', 'boolean'],
+        ]);
+        $plantilla->update($data);
+
+        return response()->json($plantilla->fresh());
     }
 
     private function normalizar(string $value): string

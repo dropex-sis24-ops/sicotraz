@@ -6,8 +6,9 @@ plugins {
 }
 
 android {
-    namespace = "com.example.mobile"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "bo.edu.tecba.sicotraz"
+    // flutter_secure_storage requiere compilar con API 37; minSdk se conserva en 28.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -20,8 +21,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.mobile"
+        applicationId = "bo.edu.tecba.sicotraz"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 28

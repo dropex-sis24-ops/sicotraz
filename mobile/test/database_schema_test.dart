@@ -31,5 +31,9 @@ void main() {
         reason: 'Falta la tabla $table en el esquema SQLite.',
       );
     }
+    final usuario = DatabaseSchema.statements.firstWhere(
+      (statement) => statement.contains('CREATE TABLE usuario ('),
+    );
+    expect(usuario, contains('area_id INTEGER'));
   });
 }

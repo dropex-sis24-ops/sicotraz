@@ -17,4 +17,9 @@ class StockArea extends Model
         'cantidad_en_area',
         'cantidad_en_lavanderia',
     ];
+
+    public function tipoPrenda()
+    {
+        return $this->belongsTo(TipoPrenda::class, 'tipo_prenda_id');
+    }
 }

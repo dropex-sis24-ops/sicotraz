@@ -2,6 +2,7 @@
 
 namespace App\Domain\Usuarios\Models;
 
+use App\Domain\Stock\Models\Area;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -19,6 +20,7 @@ class Usuario extends Authenticatable
         'carnet_identidad',
         'password_hash',
         'rol_id',
+        'area_id',
         'activo',
         'debe_cambiar_password',
         'intentos_fallidos',
@@ -43,5 +45,10 @@ class Usuario extends Authenticatable
     public function rol()
     {
         return $this->belongsTo(Rol::class, 'rol_id');
+    }
+
+    public function area()
+    {
+        return $this->belongsTo(Area::class, 'area_id');
     }
 }

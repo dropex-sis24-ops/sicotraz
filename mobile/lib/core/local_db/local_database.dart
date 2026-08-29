@@ -24,6 +24,11 @@ class LocalDatabase {
         }
         await batch.commit(noResult: true);
       },
+      onUpgrade: (db, from, _) async {
+        if (from < 2) {
+          await db.execute('ALTER TABLE usuario ADD COLUMN area_id INTEGER');
+        }
+      },
     );
 
     _instance = database;

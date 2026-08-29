@@ -18,7 +18,7 @@ return new class extends Migration
             $table->integer('cantidad_total')->default(0);
             $table->integer('cantidad_en_area')->default(0);
             $table->integer('cantidad_en_lavanderia')->default(0);
-            
+
             $table->foreign('area_id')->references('id')->on('area');
             $table->foreign('tipo_prenda_id')->references('id')->on('tipo_prenda');
         });
