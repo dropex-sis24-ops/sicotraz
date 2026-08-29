@@ -1,0 +1,39 @@
+import 'package:sqflite/sqflite.dart';
+
+import 'database_schema.dart';
+
+/// Punto único de acceso a SQLite para el funcionamiento offline-first.
+class LocalDatabase {
+  LocalDatabase._();
+
+  static Database? _instance;
+
+  static Future<Database> get instance async {
+    final existing = _instance;
+    if (existing != null) return existing;
+
+    final directory = await getDatabasesPath();
+    final database = await openDatabase(
+      '$directory/sicotraz.db',
+      version: DatabaseSchema.version,
+      onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
+      onCreate: (db, _) async {
+        final batch = db.batch();
+        for (final statement in DatabaseSchema.statements) {
+          batch.execute(statement);
+        }
+        await batch.commit(noResult: true);
+      },
+    );
+
+    _instance = database;
+    return database;
+  }
+
+  static Future<void> close() async {
+    final database = _instance;
+    if (database == null) return;
+    await database.close();
+    _instance = null;
+  }
+}
