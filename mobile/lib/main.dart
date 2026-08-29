@@ -1,40 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'core/theme/app_theme.dart';
+import 'features/auth/application/session_controller.dart';
+import 'features/auth/presentation/force_password_change_screen.dart';
+import 'features/auth/presentation/login_screen.dart';
+import 'features/home/presentation/role_home_screen.dart';
 
 void main() {
-  runApp(const SicotrazApp());
+  final session = SessionController()..restore();
+  runApp(SicotrazApp(session: session));
 }
 
 class SicotrazApp extends StatelessWidget {
-  const SicotrazApp({super.key});
+  const SicotrazApp({super.key, this.session});
+
+  final SessionController? session;
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'SICOTRAZ',
-      home: TechnicalPreparationScreen(),
+    return ChangeNotifierProvider<SessionController>(
+      create: (_) => session ?? SessionController(),
+      child: MaterialApp(
+        title: 'SICOTRAZ',
+        theme: AppTheme.light,
+        home: const _SessionGate(),
+      ),
     );
   }
 }
 
-class TechnicalPreparationScreen extends StatelessWidget {
-  const TechnicalPreparationScreen({super.key});
+class _SessionGate extends StatelessWidget {
+  const _SessionGate();
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'SICOTRAZ',
-              style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 20),
-            Text('Preparación técnica', style: TextStyle(fontSize: 20)),
-          ],
-        ),
-      ),
-    );
+    switch (context.watch<SessionController>().status) {
+      case SessionStatus.loading:
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      case SessionStatus.unauthenticated:
+        return const LoginScreen();
+      case SessionStatus.passwordChangeRequired:
+        return const ForcePasswordChangeScreen();
+      case SessionStatus.authenticated:
+        return const RoleHomeScreen();
+    }
   }
 }
