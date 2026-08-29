@@ -8,6 +8,7 @@ import '../../alertas/presentation/alert_form_screen.dart';
 import '../../alertas/presentation/alert_list_screen.dart';
 import '../../movimientos/presentation/history_screen.dart';
 import '../../movimientos/presentation/manual_lote_screen.dart';
+import '../../ocr/presentation/capture_form_screen.dart';
 import '../../stock/presentation/stock_load_screen.dart';
 import '../../stock/presentation/stock_verification_screen.dart';
 
@@ -108,6 +109,12 @@ class RoleHomeScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) =>
                             const ManualLoteScreen(quirofanoOnly: true),
+                      ),
+                    );
+                  } else if (action == 'Capturar formulario') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const CaptureFormScreen(),
                       ),
                     );
                   } else if (action == 'Reportar') {

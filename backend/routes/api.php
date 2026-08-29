@@ -3,6 +3,7 @@
 use App\Domain\Alertas\Http\Controllers\AlertaController;
 use App\Domain\Auth\Http\Controllers\AuthController;
 use App\Domain\Movimientos\Http\Controllers\LoteController;
+use App\Domain\OCR\Http\Controllers\PlantillaPdfController;
 use App\Domain\Stock\Http\Controllers\CatalogoController;
 use App\Domain\Stock\Http\Controllers\StockController;
 use App\Domain\Stock\Http\Controllers\VerificacionStockController;
@@ -51,6 +52,8 @@ Route::middleware(['auth:sanctum', 'role:Ropera,Encargado de Ropería y Lavander
     Route::patch('/lotes/{lote}/etapa', [LoteController::class, 'avanzarEtapa']);
     Route::post('/lotes/{lote}/entrega-limpia', [LoteController::class, 'entregaLimpia']);
 });
+
+Route::middleware(['auth:sanctum', 'role:Super Admin,Encargado de Ropería y Lavandería'])->get('/plantillas/pdf', [PlantillaPdfController::class, 'descargar']);
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/lotes/{lote}', [LoteController::class, 'show']);
