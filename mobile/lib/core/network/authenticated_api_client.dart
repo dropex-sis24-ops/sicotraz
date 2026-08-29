@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -52,6 +53,20 @@ class AuthenticatedApiClient {
       );
     }
     return (data as Map<String, dynamic>)['url'] as String;
+  }
+
+  Future<Uint8List> download(String path, String token) async {
+    final response = await _client.get(
+      Uri.parse('$_baseUrl$path'),
+      headers: {'Accept': 'application/pdf', 'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        'No fue posible generar el PDF.',
+        statusCode: response.statusCode,
+      );
+    }
+    return response.bodyBytes;
   }
 
   Future<dynamic> _request(

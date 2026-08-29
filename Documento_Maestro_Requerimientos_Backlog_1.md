@@ -494,8 +494,8 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 - [ ] HU03, HU04, HU05, HU24, HU25, HU27, HU28 cumplen sus criterios de aceptación.
 - [ ] El OCR reconoce correctamente las 2 plantillas (Salas y Quirófano) en al menos un caso de prueba real por cada una.
 - [ ] El flujo foto → revisión → guardado (Pantallas 6–7) funciona de extremo a extremo.
-- [ ] El registro manual (Pantalla 8) sigue disponible como respaldo si el OCR falla.
-- [ ] La impresión de plantilla en blanco (Pantalla 9) genera un PDF correcto.
+- [x] El registro manual (Pantalla 8) sigue disponible como respaldo si el OCR falla.
+- [x] La impresión de plantilla en blanco (Pantalla 9) genera un PDF correcto.
 
 **Sprint 4 — completo cuando:**
 - [ ] HU14, HU15, HU16 cumplen sus criterios de aceptación.

@@ -1,2 +1,4 @@
 .DS_Store
 mobile/android/.kotlin/
+/tmp/
+/output/

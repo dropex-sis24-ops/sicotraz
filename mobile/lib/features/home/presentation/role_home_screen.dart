@@ -9,6 +9,7 @@ import '../../alertas/presentation/alert_list_screen.dart';
 import '../../movimientos/presentation/history_screen.dart';
 import '../../movimientos/presentation/manual_lote_screen.dart';
 import '../../ocr/presentation/capture_form_screen.dart';
+import '../../ocr/presentation/template_pdf_screen.dart';
 import '../../stock/presentation/stock_load_screen.dart';
 import '../../stock/presentation/stock_verification_screen.dart';
 
@@ -21,12 +22,14 @@ class RoleHomeScreen extends StatelessWidget {
       'Gestión de usuarios',
       'Gestión de catálogo',
       'Carga de stock inicial',
+      'Imprimir plantilla',
     ],
     'Encargado de Ropería y Lavandería': [
       'Lista del día',
       'Alertas pendientes',
       'Seguimiento de lotes',
       'Dashboard',
+      'Imprimir plantilla',
     ],
     'Ropera': [
       'Registrar Quirófano',
@@ -115,6 +118,12 @@ class RoleHomeScreen extends StatelessWidget {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const CaptureFormScreen(),
+                      ),
+                    );
+                  } else if (action == 'Imprimir plantilla') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const TemplatePdfScreen(),
                       ),
                     );
                   } else if (action == 'Reportar') {
