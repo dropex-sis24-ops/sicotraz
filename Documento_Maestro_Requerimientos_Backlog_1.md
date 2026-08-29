@@ -484,11 +484,11 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 - [x] Stock piloto cargado para Cirugía Varones y Quirófano (sección 5).
 
 **Sprint 2 — completo cuando:**
-- [ ] HU10, HU11, HU12, HU13 cumplen sus criterios de aceptación.
-- [ ] HU08, HU09 cumplen sus criterios de aceptación.
-- [ ] Un lote se puede registrar manualmente de principio a fin (Pantalla 8) y aparece correctamente en el historial (Pantalla 15).
-- [ ] Los lotes de Quirófano confirmados entre 06:30 y 16:30 pasan inmediatamente a `en_lavado` (HU12); las demás áreas conservan su flujo anterior y la Ropera dispone de una hora de corrección desde la creación del lote de Quirófano.
-- [ ] El sistema es 100% funcional de forma manual, sin OCR todavía — este es el corazón validado antes de automatizar.
+- [x] HU10, HU11, HU12, HU13 cumplen sus criterios de aceptación.
+- [x] HU08, HU09 cumplen sus criterios de aceptación.
+- [x] Un lote se puede registrar manualmente de principio a fin (Pantalla 8) y aparece correctamente en el historial (Pantalla 15).
+- [x] Los lotes de Quirófano confirmados entre 06:30 y 16:30 pasan inmediatamente a `en_lavado` (HU12); las demás áreas conservan su flujo anterior y la Ropera dispone de una hora de corrección desde la creación del lote de Quirófano.
+- [x] El sistema es 100% funcional de forma manual, sin OCR todavía — este es el corazón validado antes de automatizar.
 
 **Sprint 3 — completo cuando:**
 - [ ] HU03, HU04, HU05, HU24, HU25, HU27, HU28 cumplen sus criterios de aceptación.
@@ -1593,7 +1593,7 @@ Componente pequeño (barra o ícono), no una pantalla completa — aparece en la
 | **tipo_prenda** | id, nombre, activo | Ej. sábana, bata, campo quirúrgico. `activo` permite desactivar sin borrar (RF41) |
 | **stock_area** | id, area_id (FK), tipo_prenda_id (FK), cantidad_total (máx. 3 dígitos, 0–999), cantidad_en_area, cantidad_en_lavanderia | RF10, RF11, RF40. `cantidad_en_area + cantidad_en_lavanderia = cantidad_total` siempre |
 | **plantilla_formulario** | id, nombre (Salas / Quirófano), estructura_campos, activo | El Super Admin puede modificar su estructura sin cambiar código (RF42). |
-| **lote** | id, area_id (FK), etapa, fecha_hora, peso_kg, usuario_entrega_id (FK), usuario_registra_id (FK), usuario_recibe_id (FK, nullable), origen_registro (manual / ocr_local), plantilla_id (FK, nullable), nombre_quien_trae (opcional), sincronizado, fecha_ultima_modificacion | Cabecera de entrega. `peso_kg` se ingresa manualmente y es total del lote. RF16–RF19, RF25, RF29–RF30. |
+| **lote** | id, area_id (FK), etapa, fecha_hora, peso_kg, usuario_entrega_id (FK, nullable), usuario_registra_id (FK), usuario_recibe_id (FK, nullable), origen_registro (manual / ocr_local), plantilla_id (FK, nullable), nombre_quien_trae (opcional), sincronizado, fecha_ultima_modificacion | Cabecera de entrega. La persona que entrega puede quedar sin identificar; `peso_kg` se ingresa manualmente y es total del lote. RF16–RF19, RF25, RF29–RF30. |
 | **detalle_lote** | id, lote_id (FK), tipo_prenda_id (FK), cantidad (0–999) | Cada prenda y cantidad contenida en un lote. |
 | **movimiento_lote** | id, lote_id (FK), etapa, fecha_hora, usuario_id (FK) | Historial de cada cambio de etapa — RF18, RF20 |
 | **verificacion_stock** | id, area_id (FK), usuario_id (FK), fecha_hora, resultado (sin_novedad / irregularidad_reportada), observacion, sincronizado, fecha_ultima_modificacion | Cabecera que guarda siempre la verificación de turno. |
@@ -1683,7 +1683,7 @@ erDiagram
         string etapa
         datetime fecha_hora
         decimal peso_kg
-        int usuario_entrega_id FK
+        int usuario_entrega_id FK "nullable"
         int usuario_registra_id FK
         int usuario_recibe_id FK
         string origen_registro

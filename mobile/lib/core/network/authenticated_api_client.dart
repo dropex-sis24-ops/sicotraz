@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -34,6 +35,24 @@ class AuthenticatedApiClient {
     String token, [
     Map<String, dynamic>? body,
   ]) => _request('PUT', path, token, body);
+
+  Future<String> uploadPhoto(String token, File photo) async {
+    final request =
+        http.MultipartRequest('POST', Uri.parse('$_baseUrl/archivos'))
+          ..headers['Accept'] = 'application/json'
+          ..headers['Authorization'] = 'Bearer $token'
+          ..files.add(await http.MultipartFile.fromPath('foto', photo.path));
+    final response = await http.Response.fromStream(await request.send());
+    final data = response.body.isEmpty ? null : jsonDecode(response.body);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        (data as Map<String, dynamic>?)?['message'] as String? ??
+            'No fue posible subir la foto.',
+        statusCode: response.statusCode,
+      );
+    }
+    return (data as Map<String, dynamic>)['url'] as String;
+  }
 
   Future<dynamic> _request(
     String method,

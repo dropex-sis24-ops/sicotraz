@@ -1,4 +1,4 @@
-package com.example.mobile
+package bo.edu.tecba.sicotraz
 
 import io.flutter.embedding.android.FlutterActivity
 

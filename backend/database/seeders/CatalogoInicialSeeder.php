@@ -24,13 +24,19 @@ class CatalogoInicialSeeder extends Seeder
             }
         }
 
-        PlantillaFormulario::query()->firstOrCreate(
+        $plantillaSalas = PlantillaFormulario::query()->firstOrCreate(
             ['nombre' => 'Salas'],
-            ['estructura_campos' => ['tipo' => 'salas', 'campos' => []], 'activo' => true],
+            ['estructura_campos' => ['tipo' => 'salas', 'tipos_prenda' => ['Cubrecamas', 'Sábanas Superiores', 'Sábanas Inferiores', 'Fundas', 'Sabanilla', 'Camisa', 'Hule', 'Frazada', 'Inmovilizador', 'Almohadas', 'Colchonetas', 'Cortina', 'Bata Médica', 'Saco', 'Pantalón', 'Toalla de Enf.', 'Secador']], 'activo' => true],
         );
-        PlantillaFormulario::query()->firstOrCreate(
+        $plantillaQuirofano = PlantillaFormulario::query()->firstOrCreate(
             ['nombre' => 'Quirófano'],
-            ['estructura_campos' => ['tipo' => 'quirofano', 'campos' => []], 'activo' => true],
+            ['estructura_campos' => ['tipo' => 'quirofano', 'tipos_prenda' => ['Campo Grande (C. GRANDE)', 'Batas (Quirófano)', 'Funda Mayo', 'F.M.', 'Precampo (P. PRECAMPO)', 'Compresa', 'A. Grande', 'A. Simple', 'Sábana (Quirófano)', 'Sabanilla', 'Campo Paciente (C. PACIENTE)', 'Campo Anestesiólogo (C. ANESTESIO)', 'Bata Celeste', 'Hule', 'Frazada', 'Pechera', 'Sixto', 'Pijamas', 'Inmovilizador']], 'activo' => true],
         );
+        if (! isset($plantillaSalas->estructura_campos['tipos_prenda'])) {
+            $plantillaSalas->update(['estructura_campos' => ['tipo' => 'salas', 'tipos_prenda' => ['Cubrecamas', 'Sábanas Superiores', 'Sábanas Inferiores', 'Fundas', 'Sabanilla', 'Camisa', 'Hule', 'Frazada', 'Inmovilizador', 'Almohadas', 'Colchonetas', 'Cortina', 'Bata Médica', 'Saco', 'Pantalón', 'Toalla de Enf.', 'Secador']]]);
+        }
+        if (! isset($plantillaQuirofano->estructura_campos['tipos_prenda'])) {
+            $plantillaQuirofano->update(['estructura_campos' => ['tipo' => 'quirofano', 'tipos_prenda' => ['Campo Grande (C. GRANDE)', 'Batas (Quirófano)', 'Funda Mayo', 'F.M.', 'Precampo (P. PRECAMPO)', 'Compresa', 'A. Grande', 'A. Simple', 'Sábana (Quirófano)', 'Sabanilla', 'Campo Paciente (C. PACIENTE)', 'Campo Anestesiólogo (C. ANESTESIO)', 'Bata Celeste', 'Hule', 'Frazada', 'Pechera', 'Sixto', 'Pijamas', 'Inmovilizador']]]);
+        }
     }
 }

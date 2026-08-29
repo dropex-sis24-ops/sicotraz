@@ -4,6 +4,10 @@ import 'package:provider/provider.dart';
 import '../../auth/application/session_controller.dart';
 import '../../admin/presentation/catalog_management_screen.dart';
 import '../../admin/presentation/user_management_screen.dart';
+import '../../alertas/presentation/alert_form_screen.dart';
+import '../../alertas/presentation/alert_list_screen.dart';
+import '../../movimientos/presentation/history_screen.dart';
+import '../../movimientos/presentation/manual_lote_screen.dart';
 import '../../stock/presentation/stock_load_screen.dart';
 import '../../stock/presentation/stock_verification_screen.dart';
 
@@ -23,7 +27,12 @@ class RoleHomeScreen extends StatelessWidget {
       'Seguimiento de lotes',
       'Dashboard',
     ],
-    'Ropera': ['Registrar Quirófano', 'Capturar formulario', 'Registro manual'],
+    'Ropera': [
+      'Registrar Quirófano',
+      'Capturar formulario',
+      'Registro manual',
+      'Alertas pendientes',
+    ],
     'Personal manual': ['Verificar turno', 'Ver última lista', 'Reportar'],
     'Costura': ['Dar de baja prenda', 'Mis bajas recientes'],
   };
@@ -87,6 +96,37 @@ class RoleHomeScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => const StockVerificationScreen(),
                       ),
+                    );
+                  } else if (action == 'Registro manual') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ManualLoteScreen(),
+                      ),
+                    );
+                  } else if (action == 'Registrar Quirófano') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            const ManualLoteScreen(quirofanoOnly: true),
+                      ),
+                    );
+                  } else if (action == 'Reportar') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AlertFormScreen(),
+                      ),
+                    );
+                  } else if (action == 'Alertas pendientes') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AlertListScreen(),
+                      ),
+                    );
+                  } else if (action == 'Lista del día' ||
+                      action == 'Seguimiento de lotes' ||
+                      action == 'Ver última lista') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const HistoryScreen()),
                     );
                   }
                 },
