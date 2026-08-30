@@ -14,7 +14,7 @@ class Baja extends Model
     protected $fillable = [
         'tipo_prenda_id', 'area_id', 'usuario_costura_id', 'cantidad',
         'motivo', 'descripcion', 'foto_evidencia_url', 'fecha_hora',
-        'sincronizado', 'fecha_ultima_modificacion',
+        'sincronizado', 'fecha_ultima_modificacion', 'uuid_local', 'sync_payload_hash',
     ];
 
     protected function casts(): array

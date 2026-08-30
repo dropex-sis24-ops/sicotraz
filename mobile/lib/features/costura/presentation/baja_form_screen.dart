@@ -5,8 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/network/authenticated_api_client.dart';
-import '../../auth/application/session_controller.dart';
+import '../../../core/sync/sync_controller.dart';
 
 class BajaFormScreen extends StatefulWidget {
   const BajaFormScreen({super.key});
@@ -36,18 +35,16 @@ class _BajaFormScreenState extends State<BajaFormScreen> {
   bool _saving = false;
   String? _message;
 
-  String get _token => context.read<SessionController>().token!;
-
   @override
   void initState() {
     super.initState();
-    final api = AuthenticatedApiClient();
+    final api = context.read<SyncController>();
     _catalogue = Future.wait([
       api
-          .get('/catalogo/areas', _token)
+          .cachedGet('/catalogo/areas', cacheKey: 'catalogo_areas')
           .then((value) => value as List<dynamic>),
       api
-          .get('/catalogo/prendas', _token)
+          .cachedGet('/catalogo/prendas', cacheKey: 'catalogo_prendas')
           .then((value) => value as List<dynamic>),
     ]);
   }
@@ -69,6 +66,7 @@ class _BajaFormScreenState extends State<BajaFormScreen> {
   }
 
   Future<void> _save() async {
+    final sync = context.read<SyncController>();
     final amount = int.tryParse(_amount.text);
     if (_areaId == null ||
         _clothId == null ||
@@ -107,23 +105,30 @@ class _BajaFormScreenState extends State<BajaFormScreen> {
       _message = null;
     });
     try {
-      final api = AuthenticatedApiClient();
-      final photoUrl = _photo == null
-          ? null
-          : await api.uploadPhoto(_token, _photo!, category: 'bajas');
-      await api.post('/bajas', _token, {
-        'area_id': _areaId,
-        'tipo_prenda_id': _clothId,
-        'cantidad': amount,
-        'motivo': _reason,
-        'descripcion': _description.text.trim().isEmpty
-            ? null
-            : _description.text.trim(),
-        'foto_evidencia_url': photoUrl,
-      });
+      final submission = await sync.submit(
+        entityType: 'baja',
+        path: '/bajas',
+        payload: {
+          'area_id': _areaId,
+          'tipo_prenda_id': _clothId,
+          'cantidad': amount,
+          'motivo': _reason,
+          'descripcion': _description.text.trim().isEmpty
+              ? null
+              : _description.text.trim(),
+        },
+        photo: _photo,
+        photoCategory: 'bajas',
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Baja registrada y stock actualizado.')),
+          SnackBar(
+            content: Text(
+              submission.queued
+                  ? 'Baja guardada sin conexión; el stock se actualizará al sincronizar.'
+                  : 'Baja registrada y stock actualizado.',
+            ),
+          ),
         );
         Navigator.pop(context, true);
       }

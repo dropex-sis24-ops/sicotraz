@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/local_db/database_schema.dart';
 
 void main() {
-  test('el esquema local incluye las 15 tablas de negocio', () {
+  test('el esquema local incluye negocio, cola offline y caché', () {
     const tables = [
       'rol',
       'usuario',
@@ -19,6 +19,8 @@ void main() {
       'alerta',
       'baja',
       'conflicto_sincronizacion',
+      'pendiente_sincronizacion',
+      'cache_api',
     ];
 
     expect(DatabaseSchema.statements, hasLength(tables.length));
@@ -35,5 +37,11 @@ void main() {
       (statement) => statement.contains('CREATE TABLE usuario ('),
     );
     expect(usuario, contains('area_id INTEGER'));
+    final queue = DatabaseSchema.statements.firstWhere(
+      (statement) =>
+          statement.contains('CREATE TABLE pendiente_sincronizacion ('),
+    );
+    expect(queue, contains('uuid_local TEXT NOT NULL UNIQUE'));
+    expect(queue, contains('fecha_ultima_modificacion TEXT NOT NULL'));
   });
 }

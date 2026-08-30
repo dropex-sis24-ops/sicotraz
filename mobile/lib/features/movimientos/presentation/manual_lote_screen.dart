@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/network/authenticated_api_client.dart';
-import '../../auth/application/session_controller.dart';
+import '../../../core/sync/sync_controller.dart';
 
 class ManualLoteScreen extends StatefulWidget {
   const ManualLoteScreen({super.key, this.quirofanoOnly = false});
@@ -23,13 +22,12 @@ class _ManualLoteScreenState extends State<ManualLoteScreen> {
   int? _areaId;
   String? _message;
 
-  String get _token => context.read<SessionController>().token!;
-
   @override
   void initState() {
     super.initState();
-    _areas = AuthenticatedApiClient()
-        .get('/catalogo/areas', _token)
+    _areas = context
+        .read<SyncController>()
+        .cachedGet('/catalogo/areas', cacheKey: 'catalogo_areas')
         .then((value) => value as List<dynamic>);
   }
 
@@ -52,8 +50,12 @@ class _ManualLoteScreenState extends State<ManualLoteScreen> {
     _cantidades.clear();
     setState(() {
       _areaId = value;
-      _prendas = AuthenticatedApiClient()
-          .get('/lotes/formulario?area_id=$value', _token)
+      _prendas = context
+          .read<SyncController>()
+          .cachedGet(
+            '/lotes/formulario?area_id=$value',
+            cacheKey: 'formulario_area_$value',
+          )
           .then(
             (value) =>
                 (value as Map<String, dynamic>)['prendas'] as List<dynamic>,
@@ -79,22 +81,30 @@ class _ManualLoteScreenState extends State<ManualLoteScreen> {
       return;
     }
     try {
-      final result =
-          await AuthenticatedApiClient().post('/lotes', _token, {
-                'area_id': _areaId,
-                'numero_item_entrega': _itemEntrega.text.trim().isEmpty
-                    ? null
-                    : _itemEntrega.text.trim(),
-                'nombre_quien_trae': _nombreEntrega.text.trim().isEmpty
-                    ? null
-                    : _nombreEntrega.text.trim(),
-                'peso_kg': double.parse(_peso.text.replaceAll(',', '.')),
-                'detalles': details,
-              })
-              as Map<String, dynamic>;
+      final submission = await context.read<SyncController>().submit(
+        entityType: 'lote',
+        path: '/lotes',
+        payload: {
+          'area_id': _areaId,
+          'numero_item_entrega': _itemEntrega.text.trim().isEmpty
+              ? null
+              : _itemEntrega.text.trim(),
+          'nombre_quien_trae': _nombreEntrega.text.trim().isEmpty
+              ? null
+              : _nombreEntrega.text.trim(),
+          'peso_kg': double.parse(_peso.text.replaceAll(',', '.')),
+          'detalles': details,
+        },
+      );
       if (mounted) {
         setState(() {
-          _message = 'Lote #${result['id']} guardado: ${result['etapa']}.';
+          if (submission.queued) {
+            _message =
+                'Sin conexión: lote guardado en el dispositivo y pendiente de sincronizar.';
+          } else {
+            final result = submission.response as Map<String, dynamic>;
+            _message = 'Lote #${result['id']} guardado: ${result['etapa']}.';
+          }
           _peso.clear();
           _itemEntrega.clear();
           _nombreEntrega.clear();

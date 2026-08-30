@@ -3,7 +3,7 @@
 class DatabaseSchema {
   DatabaseSchema._();
 
-  static const version = 2;
+  static const version = 3;
 
   static const statements = <String>[
     '''CREATE TABLE rol (
@@ -189,6 +189,22 @@ class DatabaseSchema {
       created_at TEXT,
       updated_at TEXT,
       FOREIGN KEY (resuelto_por_id) REFERENCES usuario(id)
+    )''',
+    '''CREATE TABLE pendiente_sincronizacion (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid_local TEXT NOT NULL UNIQUE,
+      entidad_tipo TEXT NOT NULL,
+      ruta TEXT NOT NULL,
+      datos_json TEXT NOT NULL,
+      fecha_ultima_modificacion TEXT NOT NULL,
+      intentos INTEGER NOT NULL DEFAULT 0,
+      ultimo_error TEXT,
+      created_at TEXT NOT NULL
+    )''',
+    '''CREATE TABLE cache_api (
+      clave TEXT PRIMARY KEY,
+      datos_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     )''',
   ];
 }

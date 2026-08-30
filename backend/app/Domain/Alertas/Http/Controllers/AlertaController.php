@@ -16,6 +16,7 @@ class AlertaController
             'tipo_prenda_id' => ['required', 'exists:tipo_prenda,id'],
             'descripcion' => ['required', 'string', 'min:3'],
             'foto_evidencia_url' => ['nullable', 'string', 'max:2048'],
+            'uuid_local' => ['nullable', 'uuid'],
         ]);
         $usuario = $request->user();
         $areaId = $data['area_id'] ?? $usuario->area_id;
@@ -36,6 +37,7 @@ class AlertaController
             'estado' => 'pendiente',
             'sincronizado' => true,
             'fecha_ultima_modificacion' => now('America/La_Paz'),
+            'uuid_local' => $data['uuid_local'] ?? null,
         ]);
 
         return response()->json($this->cargar($alerta), 201);

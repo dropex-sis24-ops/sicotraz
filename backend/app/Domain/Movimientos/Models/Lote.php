@@ -15,7 +15,7 @@ class Lote extends Model
         'area_id', 'etapa', 'fecha_hora', 'peso_kg', 'usuario_entrega_id',
         'usuario_registra_id', 'usuario_recibe_id', 'origen_registro',
         'plantilla_id', 'nombre_quien_trae', 'sincronizado',
-        'fecha_ultima_modificacion',
+        'fecha_ultima_modificacion', 'uuid_local', 'sync_payload_hash',
     ];
 
     protected function casts(): array

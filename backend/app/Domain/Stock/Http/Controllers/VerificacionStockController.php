@@ -16,6 +16,7 @@ class VerificacionStockController
             'detalles' => ['required', 'array', 'min:1'],
             'detalles.*.tipo_prenda_id' => ['required', 'exists:tipo_prenda,id'],
             'detalles.*.cantidad_contada' => ['required', 'integer', 'min:0', 'max:999'],
+            'uuid_local' => ['nullable', 'uuid'],
         ]);
 
         $areaId = $data['area_id'] ?? $request->user()->area_id;
@@ -41,6 +42,7 @@ class VerificacionStockController
                 'area_id' => $data['area_id'], 'usuario_id' => $request->user()->id, 'fecha_hora' => now(),
                 'resultado' => $resultado, 'observacion' => $data['observacion'] ?? null,
                 'sincronizado' => true, 'fecha_ultima_modificacion' => now(), 'created_at' => now(), 'updated_at' => now(),
+                'uuid_local' => $data['uuid_local'] ?? null,
             ]);
             foreach ($data['detalles'] as $detalle) {
                 DB::table('detalle_verificacion_stock')->insert([

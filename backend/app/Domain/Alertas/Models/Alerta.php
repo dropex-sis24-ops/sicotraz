@@ -15,7 +15,7 @@ class Alerta extends Model
         'area_id', 'tipo_prenda_id', 'usuario_reporta_id', 'fecha_hora_reporte',
         'descripcion', 'foto_evidencia_url', 'estado', 'usuario_resuelve_id',
         'fecha_resolucion', 'nota_resolucion', 'sincronizado',
-        'fecha_ultima_modificacion',
+        'fecha_ultima_modificacion', 'uuid_local', 'sync_payload_hash',
     ];
 
     protected function casts(): array

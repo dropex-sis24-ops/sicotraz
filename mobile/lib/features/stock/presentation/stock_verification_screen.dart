@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/network/authenticated_api_client.dart';
+import '../../../core/sync/sync_controller.dart';
 import '../../auth/application/session_controller.dart';
 
 class StockVerificationScreen extends StatefulWidget {
@@ -26,8 +26,9 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
     final session = context.read<SessionController>();
     _areaId = session.user?.areaId;
     _areas = _areaId == null
-        ? AuthenticatedApiClient()
-              .get('/catalogo/areas', session.token!)
+        ? context
+              .read<SyncController>()
+              .cachedGet('/catalogo/areas', cacheKey: 'catalogo_areas')
               .then((value) => value as List<dynamic>)
         : Future.value([]);
     if (_areaId != null) {
@@ -44,10 +45,11 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
   void _load() {
     if (_areaId != null) {
       setState(
-        () => _stocks = AuthenticatedApiClient()
-            .get(
+        () => _stocks = context
+            .read<SyncController>()
+            .cachedGet(
               '/stock/verificacion?area_id=$_areaId',
-              context.read<SessionController>().token!,
+              cacheKey: 'stock_verificacion_$_areaId',
             )
             .then((v) => v as List<dynamic>),
       );
@@ -64,18 +66,21 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
       };
     }).toList();
     try {
-      final response = await AuthenticatedApiClient().post(
-        '/stock/verificacion',
-        context.read<SessionController>().token!,
-        {
+      final submission = await context.read<SyncController>().submit(
+        entityType: 'verificacion_stock',
+        path: '/stock/verificacion',
+        payload: {
+          'area_id': _areaId,
           'observacion': _note.text.isEmpty ? null : _note.text,
           'detalles': details,
         },
       );
       if (mounted) {
         setState(
-          () => _result =
-              (response as Map<String, dynamic>)['resultado'] as String,
+          () => _result = submission.queued
+              ? 'Guardada sin conexión; pendiente de sincronizar.'
+              : (submission.response as Map<String, dynamic>)['resultado']
+                    as String,
         );
       }
     } catch (error) {

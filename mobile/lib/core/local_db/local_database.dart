@@ -28,6 +28,10 @@ class LocalDatabase {
         if (from < 2) {
           await db.execute('ALTER TABLE usuario ADD COLUMN area_id INTEGER');
         }
+        if (from < 3) {
+          await db.execute(DatabaseSchema.statements[15]);
+          await db.execute(DatabaseSchema.statements[16]);
+        }
       },
     );
 

@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/network/authenticated_api_client.dart';
-import '../../auth/application/session_controller.dart';
+import '../../../core/sync/sync_controller.dart';
 import '../application/local_ocr_service.dart';
 
 class OcrReviewScreen extends StatefulWidget {
@@ -24,16 +23,18 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
   bool _saving = false;
   String? _message;
 
-  String get _token => context.read<SessionController>().token!;
-
   @override
   void initState() {
     super.initState();
     _item.text = widget.result.itemNumber ?? '';
-    final api = AuthenticatedApiClient();
+    final api = context.read<SyncController>();
     _catalogue = Future.wait([
-      api.get('/catalogo/areas', _token).then((v) => v as List<dynamic>),
-      api.get('/catalogo/prendas', _token).then((v) => v as List<dynamic>),
+      api
+          .cachedGet('/catalogo/areas', cacheKey: 'catalogo_areas')
+          .then((v) => v as List<dynamic>),
+      api
+          .cachedGet('/catalogo/prendas', cacheKey: 'catalogo_prendas')
+          .then((v) => v as List<dynamic>),
     ]);
   }
 
@@ -60,6 +61,7 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
   }
 
   Future<void> _save() async {
+    final sync = context.read<SyncController>();
     final details = _amounts.entries
         .map(
           (entry) => {
@@ -97,18 +99,28 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
     if (okay != true) return;
     setState(() => _saving = true);
     try {
-      await AuthenticatedApiClient().post('/lotes', _token, {
-        'area_id': _areaId,
-        'numero_item_entrega': _item.text.isEmpty ? null : _item.text,
-        'nombre_quien_trae': _name.text.isEmpty ? null : _name.text,
-        'peso_kg': double.parse(_weight.text.replaceAll(',', '.')),
-        'detalles': details,
-        'origen_registro': 'ocr_local',
-      });
+      final submission = await sync.submit(
+        entityType: 'lote',
+        path: '/lotes',
+        payload: {
+          'area_id': _areaId,
+          'numero_item_entrega': _item.text.isEmpty ? null : _item.text,
+          'nombre_quien_trae': _name.text.isEmpty ? null : _name.text,
+          'peso_kg': double.parse(_weight.text.replaceAll(',', '.')),
+          'detalles': details,
+          'origen_registro': 'ocr_local',
+        },
+      );
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Lote OCR guardado.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              submission.queued
+                  ? 'Lote OCR guardado sin conexión; se sincronizará automáticamente.'
+                  : 'Lote OCR guardado.',
+            ),
+          ),
+        );
         Navigator.popUntil(context, (route) => route.isFirst);
       }
     } catch (error) {

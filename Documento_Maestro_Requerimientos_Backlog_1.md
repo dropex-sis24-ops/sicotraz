@@ -508,11 +508,13 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 **Cierre Sprint 4 (30/08/2026):** bajas permanentes con siete motivos, descripción condicional y evidencia opcional; reducción transaccional del stock; Dashboard con siete indicadores y control por área; reportes de cantidad/peso y bajas separadas de faltantes. Validación automatizada: 22 pruebas backend (108 verificaciones), 7 pruebas Flutter y APK arm64 build 2005.
 
 **Sprint 5 — completo cuando:**
-- [ ] HU20, HU21, HU22 cumplen sus criterios de aceptación.
-- [ ] La app permite registrar sin conexión y sincroniza automáticamente al reconectar.
-- [ ] Un conflicto de sincronización simulado guarda ambos registros, aparece en Pantalla 21 y permite al Encargado o Super Admin elegir el válido y eliminar el descartado.
-- [ ] Se ejecutó la prueba de extremo a extremo por cada épica (sección 25.3), con evidencia documentada para el capítulo de pruebas de la tesis.
-- [ ] La paleta de colores de la sección 11.2 está aplicada de forma consistente en toda la app.
+- [x] HU20, HU21, HU22 cumplen sus criterios de aceptación.
+- [x] La app permite registrar sin conexión y sincroniza automáticamente al reconectar.
+- [x] Un conflicto de sincronización simulado guarda ambos registros, aparece en Pantalla 21 y permite al Encargado o Super Admin elegir el válido y eliminar el descartado.
+- [x] Se ejecutó la prueba de extremo a extremo por cada épica (sección 25.3), con evidencia documentada para el capítulo de pruebas de la tesis.
+- [x] La paleta de colores de la sección 11.2 está aplicada de forma consistente en toda la app.
+
+**Cierre Sprint 5 (30/08/2026):** cola offline SQLite para lotes, alertas, bajas y verificaciones; caché local de catálogos; sincronización automática e idempotente; indicador global de estado; conservación y resolución manual de conflictos en Pantalla 21. Validación: 25 pruebas backend (139 verificaciones), 7 pruebas Flutter, análisis estático limpio y APK arm64 build 2006 instalada y abierta sin cierre inesperado en dispositivo físico. Evidencia consolidada en `Evidencia_Pruebas_Sprint_5.md`.
 
 ---
 

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/sync/sync_controller.dart';
+import 'core/sync/sync_status_banner.dart';
 import 'features/auth/application/session_controller.dart';
 import 'features/auth/presentation/force_password_change_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
@@ -19,11 +21,28 @@ class SicotrazApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<SessionController>(
-      create: (_) => session ?? SessionController(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<SessionController>(
+          create: (_) => session ?? SessionController(),
+        ),
+        ChangeNotifierProvider<SyncController>(create: (_) => SyncController()),
+      ],
       child: MaterialApp(
         title: 'SICOTRAZ',
         theme: AppTheme.light,
+        builder: (context, child) {
+          final authenticated =
+              context.watch<SessionController>().status ==
+              SessionStatus.authenticated;
+          if (!authenticated) return child!;
+          return Column(
+            children: [
+              const SyncStatusBanner(),
+              Expanded(child: child!),
+            ],
+          );
+        },
         home: const _SessionGate(),
       ),
     );

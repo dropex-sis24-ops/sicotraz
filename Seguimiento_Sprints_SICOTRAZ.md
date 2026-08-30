@@ -7,7 +7,7 @@
 | Sprint 2 | Completado | Lotes manuales, trazabilidad, alertas y regla automática de Quirófano. |
 | Sprint 3 | Completado | OCR local, revisión editable, fallback manual y plantillas PDF. |
 | Sprint 4 | Completado | Bajas de Costura, ajuste automático de stock, Dashboard y reportes. |
-| Sprint 5 | Pendiente | Offline, sincronización, conflictos y pruebas finales. |
+| Sprint 5 | Completado | Cola offline, sincronización automática, resolución de conflictos, pruebas finales y APK build 2006. |
 
 ## Registro breve por sprint
 

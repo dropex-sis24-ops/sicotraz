@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/network/authenticated_api_client.dart';
+import '../../../core/sync/sync_controller.dart';
 import '../../auth/application/session_controller.dart';
 
 class AlertFormScreen extends StatefulWidget {
@@ -24,19 +24,17 @@ class _AlertFormScreenState extends State<AlertFormScreen> {
   String? _message;
   File? _photo;
   bool _saving = false;
-  String get _token => context.read<SessionController>().token!;
-
   @override
   void initState() {
     super.initState();
     _areaId =
         widget.initialAreaId ?? context.read<SessionController>().user?.areaId;
-    final api = AuthenticatedApiClient();
+    final api = context.read<SyncController>();
     _areas = api
-        .get('/catalogo/areas', _token)
+        .cachedGet('/catalogo/areas', cacheKey: 'catalogo_areas')
         .then((value) => value as List<dynamic>);
     _prendas = api
-        .get('/catalogo/prendas', _token)
+        .cachedGet('/catalogo/prendas', cacheKey: 'catalogo_prendas')
         .then((value) => value as List<dynamic>);
   }
 
@@ -53,19 +51,21 @@ class _AlertFormScreenState extends State<AlertFormScreen> {
     }
     try {
       setState(() => _saving = true);
-      final api = AuthenticatedApiClient();
-      final photoUrl = _photo == null
-          ? null
-          : await api.uploadPhoto(_token, _photo!);
-      await api.post('/alertas', _token, {
-        'area_id': _areaId,
-        'tipo_prenda_id': _prendaId,
-        'descripcion': _description.text.trim(),
-        'foto_evidencia_url': photoUrl,
-      });
+      final submission = await context.read<SyncController>().submit(
+        entityType: 'alerta',
+        path: '/alertas',
+        payload: {
+          'area_id': _areaId,
+          'tipo_prenda_id': _prendaId,
+          'descripcion': _description.text.trim(),
+        },
+        photo: _photo,
+      );
       if (mounted) {
         setState(() {
-          _message = 'Alerta registrada correctamente.';
+          _message = submission.queued
+              ? 'Sin conexión: alerta guardada y pendiente de sincronizar.'
+              : 'Alerta registrada correctamente.';
           _description.clear();
         });
       }

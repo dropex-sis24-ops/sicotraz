@@ -9,6 +9,7 @@ use App\Domain\Reportes\Http\Controllers\ReporteController;
 use App\Domain\Stock\Http\Controllers\CatalogoController;
 use App\Domain\Stock\Http\Controllers\StockController;
 use App\Domain\Stock\Http\Controllers\VerificacionStockController;
+use App\Domain\Sync\Http\Controllers\SyncController;
 use App\Domain\Usuarios\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ArchivoController;
 use Illuminate\Support\Facades\Route;
@@ -22,7 +23,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/catalogo/areas', [CatalogoController::class, 'areas']);
     Route::get('/catalogo/plantillas', [CatalogoController::class, 'plantillas']);
     Route::post('/archivos', [ArchivoController::class, 'store']);
+    Route::post('/sync', [SyncController::class, 'store']);
+    Route::get('/sync/conflictos', [SyncController::class, 'index']);
 });
+
+Route::middleware(['auth:sanctum', 'role:Super Admin,Encargado de Ropería y Lavandería'])
+    ->patch('/sync/conflictos/{conflicto}/resolver', [SyncController::class, 'resolver']);
 
 Route::middleware(['auth:sanctum', 'role:Super Admin'])->group(function (): void {
     Route::get('/usuarios', [UsuarioController::class, 'index']);

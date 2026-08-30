@@ -31,6 +31,7 @@ class BajaController
             'motivo' => ['required', Rule::in(self::MOTIVOS)],
             'descripcion' => ['nullable', 'required_if:motivo,Otro', 'string', 'max:1000'],
             'foto_evidencia_url' => ['nullable', 'string', 'max:2048'],
+            'uuid_local' => ['nullable', 'uuid'],
         ]);
 
         $baja = DB::transaction(function () use ($data, $request): Baja {
@@ -61,6 +62,7 @@ class BajaController
                 'fecha_hora' => $ahora,
                 'sincronizado' => true,
                 'fecha_ultima_modificacion' => $ahora,
+                'uuid_local' => $data['uuid_local'] ?? null,
             ]);
         });
 

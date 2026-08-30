@@ -58,6 +58,7 @@ class LoteController
                 'nombre_quien_trae' => $data['nombre_quien_trae'] ?? null,
                 'sincronizado' => true,
                 'fecha_ultima_modificacion' => $ahora,
+                'uuid_local' => $data['uuid_local'] ?? null,
             ]);
             $this->guardarDetalles($lote, $data['detalles']);
             $this->movimiento($lote, 'sucio_recibido', $usuario->id, $ahora);
@@ -172,6 +173,7 @@ class LoteController
             'detalles' => ['required', 'array', 'min:1'],
             'detalles.*.tipo_prenda_id' => ['required', 'distinct', 'exists:tipo_prenda,id'],
             'detalles.*.cantidad' => ['required', 'integer', 'min:1', 'max:999'],
+            'uuid_local' => ['nullable', 'uuid'],
         ]);
     }
 

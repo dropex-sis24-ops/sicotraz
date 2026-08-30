@@ -16,10 +16,17 @@ import '../../reportes/presentation/dashboard_screen.dart';
 import '../../reportes/presentation/reports_screen.dart';
 import '../../stock/presentation/stock_load_screen.dart';
 import '../../stock/presentation/stock_verification_screen.dart';
+import '../../../core/sync/sync_controller.dart';
+import '../../sync/presentation/conflict_screen.dart';
 
-class RoleHomeScreen extends StatelessWidget {
+class RoleHomeScreen extends StatefulWidget {
   const RoleHomeScreen({super.key});
 
+  @override
+  State<RoleHomeScreen> createState() => _RoleHomeScreenState();
+}
+
+class _RoleHomeScreenState extends State<RoleHomeScreen> {
   static const _actions = {
     'Super Admin': [
       'Dashboard',
@@ -47,6 +54,20 @@ class RoleHomeScreen extends StatelessWidget {
   };
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final token = context.read<SessionController>().token;
+      if (token != null) {
+        context.read<SyncController>().start(
+          token,
+          areaId: context.read<SessionController>().user?.areaId,
+        );
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final session = context.watch<SessionController>();
     final user = session.user!;
@@ -59,120 +80,147 @@ class RoleHomeScreen extends StatelessWidget {
           IconButton(
             tooltip: 'Cerrar sesión',
             icon: const Icon(Icons.logout),
-            onPressed: () => context.read<SessionController>().logout(),
+            onPressed: () {
+              context.read<SyncController>().stop();
+              context.read<SessionController>().logout();
+            },
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+      body: Column(
         children: [
-          Text(
-            'Hola, ${user.nombre}',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          const Chip(
-            avatar: Icon(Icons.cloud_done, size: 18),
-            label: Text('Conexión disponible'),
-          ),
-          const SizedBox(height: 16),
-          for (final action in actions)
-            Card(
-              child: ListTile(
-                title: Text(action),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  if (action == 'Carga de stock inicial') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const StockLoadScreen(),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                Text(
+                  'Hola, ${user.nombre}',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 8),
+                if (context.watch<SyncController>().conflictCount > 0)
+                  Card(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    child: ListTile(
+                      leading: const Icon(Icons.warning_amber),
+                      title: Text(
+                        '${context.watch<SyncController>().conflictCount} conflicto(s) de sincronización',
                       ),
-                    );
-                  } else if (action == 'Gestión de usuarios') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const UserManagementScreen(),
+                      subtitle: const Text('Se conservaron ambas versiones.'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ConflictScreen(),
+                        ),
                       ),
-                    );
-                  } else if (action == 'Gestión de catálogo') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const CatalogManagementScreen(),
-                      ),
-                    );
-                  } else if (action == 'Verificar turno') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const StockVerificationScreen(),
-                      ),
-                    );
-                  } else if (action == 'Registro manual') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ManualLoteScreen(),
-                      ),
-                    );
-                  } else if (action == 'Registrar Quirófano') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            const ManualLoteScreen(quirofanoOnly: true),
-                      ),
-                    );
-                  } else if (action == 'Capturar formulario') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const CaptureFormScreen(),
-                      ),
-                    );
-                  } else if (action == 'Imprimir plantilla') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const TemplatePdfScreen(),
-                      ),
-                    );
-                  } else if (action == 'Dar de baja prenda') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const BajaFormScreen()),
-                    );
-                  } else if (action == 'Mis bajas recientes') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const RecentBajasScreen(),
-                      ),
-                    );
-                  } else if (action == 'Dashboard') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const DashboardScreen(),
-                      ),
-                    );
-                  } else if (action == 'Reportes') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ReportsScreen()),
-                    );
-                  } else if (action == 'Reportar') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AlertFormScreen(),
-                      ),
-                    );
-                  } else if (action == 'Alertas pendientes') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AlertListScreen(),
-                      ),
-                    );
-                  } else if (action == 'Lista del día' ||
-                      action == 'Seguimiento de lotes' ||
-                      action == 'Ver última lista') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                    );
-                  }
-                },
-              ),
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                for (final action in actions)
+                  Card(
+                    child: ListTile(
+                      title: Text(action),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        if (action == 'Carga de stock inicial') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const StockLoadScreen(),
+                            ),
+                          );
+                        } else if (action == 'Gestión de usuarios') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const UserManagementScreen(),
+                            ),
+                          );
+                        } else if (action == 'Gestión de catálogo') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const CatalogManagementScreen(),
+                            ),
+                          );
+                        } else if (action == 'Verificar turno') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const StockVerificationScreen(),
+                            ),
+                          );
+                        } else if (action == 'Registro manual') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ManualLoteScreen(),
+                            ),
+                          );
+                        } else if (action == 'Registrar Quirófano') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const ManualLoteScreen(quirofanoOnly: true),
+                            ),
+                          );
+                        } else if (action == 'Capturar formulario') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const CaptureFormScreen(),
+                            ),
+                          );
+                        } else if (action == 'Imprimir plantilla') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const TemplatePdfScreen(),
+                            ),
+                          );
+                        } else if (action == 'Dar de baja prenda') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const BajaFormScreen(),
+                            ),
+                          );
+                        } else if (action == 'Mis bajas recientes') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const RecentBajasScreen(),
+                            ),
+                          );
+                        } else if (action == 'Dashboard') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const DashboardScreen(),
+                            ),
+                          );
+                        } else if (action == 'Reportes') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ReportsScreen(),
+                            ),
+                          );
+                        } else if (action == 'Reportar') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AlertFormScreen(),
+                            ),
+                          );
+                        } else if (action == 'Alertas pendientes') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AlertListScreen(),
+                            ),
+                          );
+                        } else if (action == 'Lista del día' ||
+                            action == 'Seguimiento de lotes' ||
+                            action == 'Ver última lista') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const HistoryScreen(),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
     );
