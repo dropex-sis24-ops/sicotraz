@@ -37,11 +37,16 @@ class AuthenticatedApiClient {
     Map<String, dynamic>? body,
   ]) => _request('PUT', path, token, body);
 
-  Future<String> uploadPhoto(String token, File photo) async {
+  Future<String> uploadPhoto(
+    String token,
+    File photo, {
+    String category = 'alertas',
+  }) async {
     final request =
         http.MultipartRequest('POST', Uri.parse('$_baseUrl/archivos'))
           ..headers['Accept'] = 'application/json'
           ..headers['Authorization'] = 'Bearer $token'
+          ..fields['categoria'] = category
           ..files.add(await http.MultipartFile.fromPath('foto', photo.path));
     final response = await http.Response.fromStream(await request.send());
     final data = response.body.isEmpty ? null : jsonDecode(response.body);

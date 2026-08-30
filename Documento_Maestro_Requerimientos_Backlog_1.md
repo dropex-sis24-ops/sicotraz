@@ -500,10 +500,12 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 **Cierre Sprint 3 (30/08/2026):** Tesseract español local, detección automática de plantilla/área/prendas/ítem/fecha, corrección con controles +/−, confirmación antes de guardar, fallback manual y PDF A4 verificado para Salas y Quirófano. Validación automatizada: 7 pruebas Flutter y 18 pruebas backend; la instalación física de la build 2003 queda operativamente pendiente hasta que el dispositivo vuelva a ADB.
 
 **Sprint 4 — completo cuando:**
-- [ ] HU14, HU15, HU16 cumplen sus criterios de aceptación.
-- [ ] HU17, HU18, HU19 cumplen sus criterios de aceptación.
-- [ ] Una baja registrada en Costura descuenta el stock automáticamente (HU15) y se refleja en el Dashboard.
-- [ ] Los 7 cuadros del Dashboard (incluyendo RF45 y los 2 indicadores adicionales) muestran datos reales, no de prueba.
+- [x] HU14, HU15, HU16 cumplen sus criterios de aceptación.
+- [x] HU17, HU18, HU19 cumplen sus criterios de aceptación.
+- [x] Una baja registrada en Costura descuenta el stock automáticamente (HU15) y se refleja en el Dashboard.
+- [x] Los 7 cuadros del Dashboard (incluyendo RF45 y los 2 indicadores adicionales) muestran datos reales, no de prueba.
+
+**Cierre Sprint 4 (30/08/2026):** bajas permanentes con siete motivos, descripción condicional y evidencia opcional; reducción transaccional del stock; Dashboard con siete indicadores y control por área; reportes de cantidad/peso y bajas separadas de faltantes. Validación automatizada: 22 pruebas backend (108 verificaciones), 7 pruebas Flutter y APK arm64 build 2005.
 
 **Sprint 5 — completo cuando:**
 - [ ] HU20, HU21, HU22 cumplen sus criterios de aceptación.
@@ -1601,7 +1603,7 @@ Componente pequeño (barra o ícono), no una pantalla completa — aparece en la
 | **verificacion_stock** | id, area_id (FK), usuario_id (FK), fecha_hora, resultado (sin_novedad / irregularidad_reportada), observacion, sincronizado, fecha_ultima_modificacion | Cabecera que guarda siempre la verificación de turno. |
 | **detalle_verificacion_stock** | id, verificacion_stock_id (FK), tipo_prenda_id (FK), cantidad_esperada, cantidad_contada | Prendas comparadas durante la verificación; el personal manual no puede editar la cantidad esperada. |
 | **alerta** | id, area_id (FK), tipo_prenda_id (FK), usuario_reporta_id (FK), fecha_hora_reporte, descripcion, foto_evidencia_url (nullable), estado (pendiente / resuelta), usuario_resuelve_id (FK, nullable), fecha_resolucion, nota_resolucion, sincronizado, fecha_ultima_modificacion | RF13–RF15. La foto es opcional. |
-| **baja** | id, tipo_prenda_id (FK), area_id (FK), usuario_costura_id (FK), cantidad, motivo, foto_evidencia_url (nullable), fecha_hora, sincronizado, fecha_ultima_modificacion | La cantidad puede ser mayor a una y la foto es opcional. RF21–RF23 |
+| **baja** | id, tipo_prenda_id (FK), area_id (FK), usuario_costura_id (FK), cantidad, motivo, descripcion (nullable; obligatoria cuando motivo = Otro), foto_evidencia_url (nullable), fecha_hora, sincronizado, fecha_ultima_modificacion | La cantidad puede ser mayor a una y la foto es opcional. RF21–RF23 |
 | **conflicto_sincronizacion** | id, entidad_tipo, entidad_id, version_local_json, version_servidor_json, estado (pendiente / resuelto), version_elegida, resuelto_por_id (FK), fecha_resolucion | Conserva ambas versiones hasta que Encargado o Super Admin elija una; la descartada se elimina al resolver. RF31. |
 
 ### 13.3. Diagrama entidad-relación (Mermaid)

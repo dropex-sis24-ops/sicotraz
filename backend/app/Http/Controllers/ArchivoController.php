@@ -7,14 +7,15 @@ use Illuminate\Http\Request;
 
 class ArchivoController
 {
-    // RF14 — evidencia fotográfica opcional adjunta a una alerta.
+    // RF14 y RF22 — evidencia fotográfica opcional de alertas o bajas.
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
+        $data = $request->validate([
             'foto' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'categoria' => ['nullable', 'in:alertas,bajas'],
         ]);
 
-        $path = $request->file('foto')->store('alertas', 'public');
+        $path = $request->file('foto')->store($data['categoria'] ?? 'alertas', 'public');
 
         return response()->json([
             'url' => '/storage/'.$path,

@@ -20,4 +20,9 @@ class MovimientoLote extends Model
     {
         return $this->belongsTo(Usuario::class, 'usuario_id');
     }
+
+    public function lote()
+    {
+        return $this->belongsTo(Lote::class, 'lote_id');
+    }
 }

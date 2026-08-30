@@ -6,10 +6,14 @@ import '../../admin/presentation/catalog_management_screen.dart';
 import '../../admin/presentation/user_management_screen.dart';
 import '../../alertas/presentation/alert_form_screen.dart';
 import '../../alertas/presentation/alert_list_screen.dart';
+import '../../costura/presentation/baja_form_screen.dart';
+import '../../costura/presentation/recent_bajas_screen.dart';
 import '../../movimientos/presentation/history_screen.dart';
 import '../../movimientos/presentation/manual_lote_screen.dart';
 import '../../ocr/presentation/capture_form_screen.dart';
 import '../../ocr/presentation/template_pdf_screen.dart';
+import '../../reportes/presentation/dashboard_screen.dart';
+import '../../reportes/presentation/reports_screen.dart';
 import '../../stock/presentation/stock_load_screen.dart';
 import '../../stock/presentation/stock_verification_screen.dart';
 
@@ -23,6 +27,7 @@ class RoleHomeScreen extends StatelessWidget {
       'Gestión de catálogo',
       'Carga de stock inicial',
       'Imprimir plantilla',
+      'Reportes',
     ],
     'Encargado de Ropería y Lavandería': [
       'Lista del día',
@@ -125,6 +130,26 @@ class RoleHomeScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => const TemplatePdfScreen(),
                       ),
+                    );
+                  } else if (action == 'Dar de baja prenda') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const BajaFormScreen()),
+                    );
+                  } else if (action == 'Mis bajas recientes') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const RecentBajasScreen(),
+                      ),
+                    );
+                  } else if (action == 'Dashboard') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const DashboardScreen(),
+                      ),
+                    );
+                  } else if (action == 'Reportes') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ReportsScreen()),
                     );
                   } else if (action == 'Reportar') {
                     Navigator.of(context).push(

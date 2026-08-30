@@ -2,8 +2,10 @@
 
 use App\Domain\Alertas\Http\Controllers\AlertaController;
 use App\Domain\Auth\Http\Controllers\AuthController;
+use App\Domain\Costura\Http\Controllers\BajaController;
 use App\Domain\Movimientos\Http\Controllers\LoteController;
 use App\Domain\OCR\Http\Controllers\PlantillaPdfController;
+use App\Domain\Reportes\Http\Controllers\ReporteController;
 use App\Domain\Stock\Http\Controllers\CatalogoController;
 use App\Domain\Stock\Http\Controllers\StockController;
 use App\Domain\Stock\Http\Controllers\VerificacionStockController;
@@ -54,6 +56,18 @@ Route::middleware(['auth:sanctum', 'role:Ropera,Encargado de Ropería y Lavander
 });
 
 Route::middleware(['auth:sanctum', 'role:Super Admin,Encargado de Ropería y Lavandería'])->get('/plantillas/pdf', [PlantillaPdfController::class, 'descargar']);
+
+Route::middleware(['auth:sanctum', 'role:Costura'])->post('/bajas', [BajaController::class, 'store']);
+Route::middleware(['auth:sanctum', 'role:Costura,Super Admin,Encargado de Ropería y Lavandería'])->get('/bajas', [BajaController::class, 'index']);
+
+Route::middleware(['auth:sanctum', 'role:Super Admin,Encargado de Ropería y Lavandería'])->group(function (): void {
+    Route::get('/dashboard', [ReporteController::class, 'dashboard']);
+    Route::get('/stock/circulando', [ReporteController::class, 'circulando']);
+});
+Route::middleware(['auth:sanctum', 'role:Super Admin'])->group(function (): void {
+    Route::get('/reportes/cantidad-peso', [ReporteController::class, 'cantidadPeso']);
+    Route::get('/reportes/bajas-vs-faltantes', [ReporteController::class, 'bajasVsFaltantes']);
+});
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/lotes/{lote}', [LoteController::class, 'show']);
