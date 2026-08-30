@@ -9,6 +9,7 @@ void main() {
     final result = parser.parse('''
 Código: 33367
 Servicio: C.V.
+Fecha: 30/08/2026
 Prenda | Cantidad
 Sábanas Superiores | 40
 Fundas: 40
@@ -28,6 +29,8 @@ Fundas: 40
     ];
 
     expect(result.itemNumber, '33367');
+    expect(result.templateName, 'Salas');
+    expect(result.formDate, '30/08/2026');
     expect(matcher.areaId(result.rawText, areas), 1);
     expect(matcher.clothes(result.lines, clothes), {10: 40, 11: 40});
   });
@@ -46,12 +49,24 @@ Pijamas: 8
     ];
 
     expect(matcher.clothes(result.lines, clothes), {20: 30, 21: 5, 22: 8});
+    expect(result.templateName, 'Quirófano');
   });
 
   test('rechaza una imagen sin filas útiles', () {
     expect(
       () => parser.parse('foto borrosa sin cantidades'),
       throwsFormatException,
+    );
+  });
+
+  test('detecta la plantilla aun antes de interpretar cantidades', () {
+    expect(
+      parser.detectTemplate('Formulario de entrega - Quirófano\nFunda Mayo'),
+      'Quirófano',
+    );
+    expect(
+      parser.detectTemplate('Formulario de entrega - Salas\nCubrecamas'),
+      'Salas',
     );
   });
 }

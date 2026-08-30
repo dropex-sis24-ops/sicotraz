@@ -13,10 +13,14 @@ class OcrResult {
     required this.rawText,
     required this.lines,
     this.itemNumber,
+    this.templateName,
+    this.formDate,
   });
   final String rawText;
   final List<OcrLine> lines;
   final String? itemNumber;
+  final String? templateName;
+  final String? formDate;
 }
 
 class OcrText {
@@ -58,10 +62,40 @@ class OcrParser {
       r'(?:c[oó]digo|item|ítem)\s*[:#-]?\s*(\d{1,10})',
       caseSensitive: false,
     ).firstMatch(text)?.group(1);
+    final date = RegExp(
+      r'\b(0?[1-9]|[12]\d|3[01])[\/-](0?[1-9]|1[0-2])[\/-](20\d{2})\b',
+    ).firstMatch(text)?.group(0);
     if (lines.isEmpty) {
       throw const FormatException('No se pudieron leer prendas y cantidades.');
     }
-    return OcrResult(rawText: text, lines: lines, itemNumber: item);
+    return OcrResult(
+      rawText: text,
+      lines: lines,
+      itemNumber: item,
+      templateName: detectTemplate(text),
+      formDate: date,
+    );
+  }
+
+  String? detectTemplate(String text) {
+    final normalized = OcrText.normalize(text);
+    const operatingRoomMarkers = [
+      'quirofano',
+      'campogrande',
+      'fundamayo',
+      'campopaciente',
+      'pechera',
+    ];
+    if (operatingRoomMarkers.any(normalized.contains)) return 'Quirófano';
+    const roomMarkers = [
+      'salas',
+      'cubrecamas',
+      'sabanassuperiores',
+      'colchonetas',
+      'secador',
+    ];
+    if (roomMarkers.any(normalized.contains)) return 'Salas';
+    return null;
   }
 }
 

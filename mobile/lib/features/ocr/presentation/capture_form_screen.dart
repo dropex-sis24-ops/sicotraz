@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../movimientos/presentation/manual_lote_screen.dart';
 import '../application/local_ocr_service.dart';
 import 'ocr_review_screen.dart';
 
@@ -81,9 +82,26 @@ class _CaptureFormScreenState extends State<CaptureFormScreen> {
               child: Center(child: CircularProgressIndicator()),
             ),
           if (_error != null)
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            Card(
+              color: Theme.of(context).colorScheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    Text(_error!),
+                    TextButton.icon(
+                      onPressed: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ManualLoteScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.edit_note),
+                      label: const Text('Usar registro manual'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           if (_result != null)
             Expanded(
@@ -116,6 +134,9 @@ class _Preview extends StatelessWidget {
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
       if (result.itemNumber != null) Text('Ítem: ${result.itemNumber}'),
+      if (result.templateName != null)
+        Text('Plantilla: ${result.templateName}'),
+      if (result.formDate != null) Text('Fecha detectada: ${result.formDate}'),
       for (final line in result.lines)
         ListTile(title: Text(line.label), trailing: Text('${line.quantity}')),
       FilledButton(

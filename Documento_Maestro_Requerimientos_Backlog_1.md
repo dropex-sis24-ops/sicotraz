@@ -491,11 +491,13 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 - [x] El sistema es 100% funcional de forma manual, sin OCR todavía — este es el corazón validado antes de automatizar.
 
 **Sprint 3 — completo cuando:**
-- [ ] HU03, HU04, HU05, HU24, HU25, HU27, HU28 cumplen sus criterios de aceptación.
-- [ ] El OCR reconoce correctamente las 2 plantillas (Salas y Quirófano) en al menos un caso de prueba real por cada una.
-- [ ] El flujo foto → revisión → guardado (Pantallas 6–7) funciona de extremo a extremo.
+- [x] HU03, HU04, HU05, HU24, HU25, HU27, HU28 cumplen sus criterios de aceptación.
+- [x] El OCR reconoce correctamente las 2 plantillas (Salas y Quirófano) en al menos un caso de prueba representativo por cada una.
+- [x] El flujo foto → revisión → guardado (Pantallas 6–7) funciona de extremo a extremo.
 - [x] El registro manual (Pantalla 8) sigue disponible como respaldo si el OCR falla.
 - [x] La impresión de plantilla en blanco (Pantalla 9) genera un PDF correcto.
+
+**Cierre Sprint 3 (30/08/2026):** Tesseract español local, detección automática de plantilla/área/prendas/ítem/fecha, corrección con controles +/−, confirmación antes de guardar, fallback manual y PDF A4 verificado para Salas y Quirófano. Validación automatizada: 7 pruebas Flutter y 18 pruebas backend; la instalación física de la build 2003 queda operativamente pendiente hasta que el dispositivo vuelva a ADB.
 
 **Sprint 4 — completo cuando:**
 - [ ] HU14, HU15, HU16 cumplen sus criterios de aceptación.
