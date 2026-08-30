@@ -25,8 +25,6 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
   String? _message;
 
   String get _token => context.read<SessionController>().token!;
-  String _normal(String value) =>
-      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
   @override
   void initState() {
@@ -51,34 +49,13 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
   }
 
   void _prepare(List<dynamic> areas, List<dynamic> clothes) {
-    _areaId ??=
-        areas.cast<Map<String, dynamic>>().where((area) {
-              final candidates = [
-                area['nombre'] as String,
-                ...((area['aliases'] as List<dynamic>? ?? []).map(
-                  (a) =>
-                      (a as Map<String, dynamic>)['alias_normalizado']
-                          as String,
-                )),
-              ];
-              return candidates.any(
-                (candidate) =>
-                    _normal(widget.result.rawText).contains(_normal(candidate)),
-              );
-            }).firstOrNull?['id']
-            as int?;
-    for (final detected in widget.result.lines) {
-      final value = _normal(detected.label);
-      final cloth = clothes.cast<Map<String, dynamic>>().where((item) {
-        final name = _normal(item['nombre'] as String);
-        return value.contains(name) || name.contains(value);
-      }).firstOrNull;
-      if (cloth != null) {
-        _amounts.putIfAbsent(
-          cloth['id'] as int,
-          () => TextEditingController(text: '${detected.quantity}'),
-        );
-      }
+    const matcher = OcrCatalogMatcher();
+    _areaId ??= matcher.areaId(widget.result.rawText, areas);
+    for (final entry in matcher.clothes(widget.result.lines, clothes).entries) {
+      _amounts.putIfAbsent(
+        entry.key,
+        () => TextEditingController(text: '${entry.value}'),
+      );
     }
   }
 

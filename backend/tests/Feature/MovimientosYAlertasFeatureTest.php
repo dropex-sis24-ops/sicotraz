@@ -36,9 +36,11 @@ class MovimientosYAlertasFeatureTest extends TestCase
             $response = $this->postJson('/api/lotes', [
                 'area_id' => $quirofano->id,
                 'peso_kg' => 4.5,
+                'origen_registro' => 'ocr_local',
                 'detalles' => [['tipo_prenda_id' => $campo->id, 'cantidad' => 5]],
             ])->assertCreated()
                 ->assertJsonPath('etapa', 'en_lavado')
+                ->assertJsonPath('origen_registro', 'ocr_local')
                 ->assertJsonCount(2, 'movimientos');
 
             $loteId = $response->json('id');
