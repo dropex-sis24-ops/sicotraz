@@ -514,7 +514,7 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 - [x] Se ejecutó la prueba de extremo a extremo por cada épica (sección 25.3), con evidencia documentada para el capítulo de pruebas de la tesis.
 - [x] La paleta de colores de la sección 11.2 está aplicada de forma consistente en toda la app.
 
-**Cierre Sprint 5 (30/08/2026):** cola offline SQLite para lotes, alertas, bajas y verificaciones; caché local de catálogos; sincronización automática e idempotente; indicador global de estado; conservación y resolución manual de conflictos en Pantalla 21. Validación: 25 pruebas backend (139 verificaciones), 7 pruebas Flutter, análisis estático limpio y APK arm64 build 2006 instalada y abierta sin cierre inesperado en dispositivo físico. Evidencia consolidada en `Evidencia_Pruebas_Sprint_5.md`.
+**Cierre Sprint 5 (30/08/2026):** cola offline SQLite para lotes, alertas, bajas y verificaciones; caché local de catálogos; sincronización automática e idempotente; indicador global de estado; conservación y resolución manual de conflictos en Pantalla 21. Validación: 26 pruebas backend (145 verificaciones), 7 pruebas Flutter, análisis estático limpio y APK arm64 build 2007. La build 2006 fue instalada y abierta sin cierre inesperado en dispositivo físico; la 2007 agrega el filtrado de prendas según la plantilla del área. Evidencia consolidada en `Evidencia_Pruebas_Sprint_5.md`.
 
 ---
 

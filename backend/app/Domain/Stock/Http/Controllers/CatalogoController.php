@@ -12,9 +12,20 @@ use Illuminate\Support\Str;
 
 class CatalogoController
 {
-    public function prendas(): JsonResponse
+    public function prendas(Request $request): JsonResponse
     {
-        return response()->json(TipoPrenda::query()->orderBy('nombre')->get());
+        $data = $request->validate(['area_id' => ['nullable', 'exists:area,id']]);
+        $query = TipoPrenda::query()->orderBy('nombre');
+        if (isset($data['area_id'])) {
+            $area = Area::query()->findOrFail($data['area_id']);
+            $plantilla = PlantillaFormulario::query()
+                ->where('nombre', $area->nombre === 'Quirófano' ? 'Quirófano' : 'Salas')
+                ->first();
+            $nombres = $plantilla?->estructura_campos['tipos_prenda'] ?? [];
+            $query->whereIn('nombre', $nombres);
+        }
+
+        return response()->json($query->get());
     }
 
     public function crearPrenda(Request $request): JsonResponse

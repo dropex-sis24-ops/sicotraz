@@ -55,6 +55,10 @@ class SyncController extends ChangeNotifier {
           final id = area['id'] as int;
           try {
             await cachedGet(
+              '/catalogo/prendas?area_id=$id',
+              cacheKey: 'catalogo_prendas_area_$id',
+            );
+            await cachedGet(
               '/lotes/formulario?area_id=$id',
               cacheKey: 'formulario_area_$id',
             );

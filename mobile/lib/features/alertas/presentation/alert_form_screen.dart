@@ -20,7 +20,7 @@ class _AlertFormScreenState extends State<AlertFormScreen> {
   int? _areaId;
   int? _prendaId;
   late Future<List<dynamic>> _areas;
-  late Future<List<dynamic>> _prendas;
+  Future<List<dynamic>> _prendas = Future.value(const []);
   String? _message;
   File? _photo;
   bool _saving = false;
@@ -33,8 +33,21 @@ class _AlertFormScreenState extends State<AlertFormScreen> {
     _areas = api
         .cachedGet('/catalogo/areas', cacheKey: 'catalogo_areas')
         .then((value) => value as List<dynamic>);
-    _prendas = api
-        .cachedGet('/catalogo/prendas', cacheKey: 'catalogo_prendas')
+    _loadClothes(_areaId);
+  }
+
+  void _loadClothes(int? areaId) {
+    if (areaId == null) {
+      _prendas = Future.value(const []);
+      return;
+    }
+    _prendaId = null;
+    _prendas = context
+        .read<SyncController>()
+        .cachedGet(
+          '/catalogo/prendas?area_id=$areaId',
+          cacheKey: 'catalogo_prendas_area_$areaId',
+        )
         .then((value) => value as List<dynamic>);
   }
 
@@ -128,7 +141,10 @@ class _AlertFormScreenState extends State<AlertFormScreen> {
                           ),
                         )
                         .toList(),
-                    onChanged: (value) => setState(() => _areaId = value),
+                    onChanged: (value) => setState(() {
+                      _areaId = value;
+                      _loadClothes(value);
+                    }),
                   ),
                 DropdownButtonFormField<int>(
                   decoration: const InputDecoration(labelText: 'Prenda'),
@@ -149,6 +165,8 @@ class _AlertFormScreenState extends State<AlertFormScreen> {
                   maxLines: 4,
                   decoration: const InputDecoration(
                     labelText: 'Descripción de lo ocurrido',
+                    hintText: 'Ejemplo: Faltan 2 sábanas superiores',
+                    helperText: 'Indique aquí cuántas unidades faltan.',
                   ),
                 ),
                 const SizedBox(height: 12),

@@ -43,6 +43,21 @@ class StockAndCatalogFeatureTest extends TestCase
             ->assertJsonPath('estructura_campos.campos.0', 'prenda');
     }
 
+    public function test_clothing_catalog_is_filtered_by_the_area_template(): void
+    {
+        $this->seed(CatalogoInicialSeeder::class);
+        Sanctum::actingAs($this->usuario('Personal manual'));
+        $sala = Area::query()->where('nombre', 'Cirugía Mujeres')->firstOrFail();
+        $quirofano = Area::query()->where('nombre', 'Quirófano')->firstOrFail();
+
+        $this->getJson("/api/catalogo/prendas?area_id={$sala->id}")->assertOk()
+            ->assertJsonFragment(['nombre' => 'Sábanas Superiores'])
+            ->assertJsonMissing(['nombre' => 'Campo Grande (C. GRANDE)']);
+        $this->getJson("/api/catalogo/prendas?area_id={$quirofano->id}")->assertOk()
+            ->assertJsonFragment(['nombre' => 'Campo Grande (C. GRANDE)'])
+            ->assertJsonMissing(['nombre' => 'Sábanas Superiores']);
+    }
+
     public function test_initial_stock_is_additive_and_never_exceeds_999(): void
     {
         Sanctum::actingAs($this->usuario('Super Admin'));
