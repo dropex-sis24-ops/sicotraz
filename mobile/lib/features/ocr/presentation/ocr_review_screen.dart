@@ -156,6 +156,7 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
                 labelText: 'N° de ítem (opcional)',
               ),
             ),
+            const SizedBox(height: 16),
             DropdownButtonFormField<int>(
               initialValue: _areaId,
               decoration: const InputDecoration(labelText: 'Servicio / Área'),
@@ -171,12 +172,14 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
                   .toList(),
               onChanged: (value) => setState(() => _areaId = value),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _name,
               decoration: const InputDecoration(
                 labelText: 'Nombre de quien trae (opcional)',
               ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _weight,
               keyboardType: const TextInputType.numberWithOptions(
@@ -184,7 +187,7 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
               ),
               decoration: const InputDecoration(labelText: 'Peso total (kg)'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 24),
             const Text(
               'Prendas detectadas',
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -231,40 +234,46 @@ class _AmountRow extends StatelessWidget {
   final VoidCallback onChanged;
   int get value => int.tryParse(controller.text) ?? 0;
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(child: Text(name)),
-      IconButton(
-        onPressed: value > 0
-            ? () {
-                controller.text = '${value - 1}';
-                onChanged();
-              }
-            : null,
-        icon: const Icon(Icons.remove),
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.only(top: 10),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          Expanded(child: Text(name)),
+          IconButton(
+            onPressed: value > 0
+                ? () {
+                    controller.text = '${value - 1}';
+                    onChanged();
+                  }
+                : null,
+            icon: const Icon(Icons.remove),
+          ),
+          SizedBox(
+            width: 52,
+            child: TextField(
+              controller: controller,
+              onChanged: (_) => onChanged(),
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(3),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: value < 999
+                ? () {
+                    controller.text = '${value + 1}';
+                    onChanged();
+                  }
+                : null,
+            icon: const Icon(Icons.add),
+          ),
+        ],
       ),
-      SizedBox(
-        width: 52,
-        child: TextField(
-          controller: controller,
-          onChanged: (_) => onChanged(),
-          textAlign: TextAlign.center,
-          keyboardType: TextInputType.number,
-          inputFormatters: [
-            FilteringTextInputFormatter.digitsOnly,
-            LengthLimitingTextInputFormatter(3),
-          ],
-        ),
-      ),
-      IconButton(
-        onPressed: value < 999
-            ? () {
-                controller.text = '${value + 1}';
-                onChanged();
-              }
-            : null,
-        icon: const Icon(Icons.add),
-      ),
-    ],
+    ),
   );
 }

@@ -73,7 +73,8 @@ class _TemplatePdfScreenState extends State<TemplatePdfScreen> {
                 if (_template == 'Quirófano') _areaId = null;
               }),
             ),
-            if (_template == 'Salas')
+            if (_template == 'Salas') ...[
+              const SizedBox(height: 20),
               DropdownButtonFormField<int?>(
                 initialValue: _areaId,
                 decoration: const InputDecoration(
@@ -93,6 +94,7 @@ class _TemplatePdfScreenState extends State<TemplatePdfScreen> {
                 ],
                 onChanged: (value) => setState(() => _areaId = value),
               ),
+            ],
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: _generating ? null : _print,

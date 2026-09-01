@@ -515,7 +515,7 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 - [x] Se ejecutó la prueba de extremo a extremo por cada épica (sección 25.3), con evidencia documentada para el capítulo de pruebas de la tesis.
 - [x] La paleta de colores de la sección 11.2 está aplicada de forma consistente en toda la app.
 
-**Cierre Sprint 5 (30/08/2026; mantenimiento 01/09/2026):** cola offline SQLite para lotes, alertas, bajas y verificaciones; caché local de catálogos; sincronización automática e idempotente; indicador global de estado; conservación y resolución manual de conflictos en Pantalla 21. Validación acumulada: 29 pruebas backend (158 verificaciones), 7 pruebas Flutter y análisis estático limpio. La APK arm64 build 2009 incorpora filtrado de prendas por área, edición de carnet, eliminación controlada de usuarios y mejor espaciado del formulario de usuarios. Evidencia consolidada en `Evidencia_Pruebas_Sprint_5.md`.
+**Cierre Sprint 5 (30/08/2026; mantenimiento 01/09/2026):** cola offline SQLite para lotes, alertas, bajas y verificaciones; caché local de catálogos; sincronización automática e idempotente; indicador global de estado; conservación y resolución manual de conflictos en Pantalla 21. Validación acumulada: 29 pruebas backend (158 verificaciones), 7 pruebas Flutter y análisis estático limpio. La APK arm64 build 2010 incorpora filtrado de prendas por área, mantenimiento controlado de usuarios, espaciado uniforme de formularios y OCR como acción principal del Home de Ropera. Evidencia consolidada en `Evidencia_Pruebas_Sprint_5.md`.
 
 ---
 
@@ -740,10 +740,13 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 3. **"Gestión de catálogo"** (Pantalla 5).
 4. *(Secundarios, un nivel más adentro, menos frecuentes)*: Carga de stock inicial (Pantalla 10), Reportes (Pantallas 18/19), Impresión de plantilla en blanco (Pantalla 9).
 
-**Home — Ropera** *(ya documentado antes, sin cambios)*:
-1. **"Registrar Quirófano"** — acceso directo.
-2. **"Capturar formulario"** (Pantalla 6).
-3. **"Registro manual"** (Pantalla 8).
+**Home — Ropera** *(jerarquía visual actualizada y aprobada el 01/09/2026)*:
+1. **"Capturar formulario con OCR"** (Pantalla 6) — tarjeta principal, grande y destacada; es la primera acción después del login.
+2. **"Registrar Quirófano manual"** — alternativa secundaria para ingreso sin OCR.
+3. **"Registro manual"** (Pantalla 8) — respaldo general.
+4. **"Alertas pendientes"** — acción secundaria.
+
+**[DECISIÓN — confirmada por el usuario, 01/09/2026]** Todos los formularios aplican una pauta visual uniforme: 16 px entre campos, 24 px entre secciones y antes de la acción principal, controles de cantidades separados en tarjetas o filas y botón principal claramente diferenciado. La cámara no se abre automáticamente al iniciar sesión; el Home de Ropera muestra OCR como acción predominante para evitar capturas accidentales.
 
 ```
 ┌─────────────────────────────┐

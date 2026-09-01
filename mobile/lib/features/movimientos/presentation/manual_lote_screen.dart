@@ -28,7 +28,18 @@ class _ManualLoteScreenState extends State<ManualLoteScreen> {
     _areas = context
         .read<SyncController>()
         .cachedGet('/catalogo/areas', cacheKey: 'catalogo_areas')
-        .then((value) => value as List<dynamic>);
+        .then((value) {
+          final areas = value as List<dynamic>;
+          if (widget.quirofanoOnly && _areaId == null) {
+            final quirofano = areas.cast<Map<String, dynamic>>().where(
+              (area) => area['nombre'] == 'Quirófano',
+            );
+            if (quirofano.isNotEmpty) {
+              _selectArea(quirofano.first['id'] as int);
+            }
+          }
+          return areas;
+        });
   }
 
   @override
@@ -157,6 +168,7 @@ class _ManualLoteScreenState extends State<ManualLoteScreen> {
                   .toList(),
               onChanged: _selectArea,
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _itemEntrega,
               keyboardType: TextInputType.number,
@@ -168,12 +180,14 @@ class _ManualLoteScreenState extends State<ManualLoteScreen> {
                 labelText: 'N° de ítem de quien entrega (opcional)',
               ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _nombreEntrega,
               decoration: const InputDecoration(
                 labelText: 'Nombre de quien trae (opcional)',
               ),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _peso,
               keyboardType: const TextInputType.numberWithOptions(
@@ -181,7 +195,7 @@ class _ManualLoteScreenState extends State<ManualLoteScreen> {
               ),
               decoration: const InputDecoration(labelText: 'Peso total (kg)'),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             if (_prendas != null)
               FutureBuilder<List<dynamic>>(
                 future: _prendas,
@@ -194,8 +208,12 @@ class _ManualLoteScreenState extends State<ManualLoteScreen> {
                     children: [
                       const Align(
                         alignment: Alignment.centerLeft,
-                        child: Text('Prendas de esta área'),
+                        child: Text(
+                          'Prendas de esta área',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
+                      const SizedBox(height: 12),
                       for (final raw in prendas)
                         Builder(
                           builder: (_) {
@@ -205,15 +223,18 @@ class _ManualLoteScreenState extends State<ManualLoteScreen> {
                               id,
                               TextEditingController.new,
                             );
-                            return TextField(
-                              controller: controller,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(3),
-                              ],
-                              decoration: InputDecoration(
-                                labelText: prenda['nombre'] as String,
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: TextField(
+                                controller: controller,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(3),
+                                ],
+                                decoration: InputDecoration(
+                                  labelText: prenda['nombre'] as String,
+                                ),
                               ),
                             );
                           },

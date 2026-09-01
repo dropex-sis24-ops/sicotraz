@@ -88,6 +88,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           selected: {_period},
           onSelectionChanged: (value) => setState(() => _period = value.first),
         ),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
@@ -104,6 +105,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
         FilledButton(
           onPressed: _loading ? null : _load,
           child: const Text('Consultar'),

@@ -146,6 +146,7 @@ class _AlertFormScreenState extends State<AlertFormScreen> {
                       _loadClothes(value);
                     }),
                   ),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<int>(
                   decoration: const InputDecoration(labelText: 'Prenda'),
                   items: prendaSnapshot.data!
@@ -160,6 +161,7 @@ class _AlertFormScreenState extends State<AlertFormScreen> {
                       .toList(),
                   onChanged: (value) => setState(() => _prendaId = value),
                 ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: _description,
                   maxLines: 4,
@@ -169,7 +171,7 @@ class _AlertFormScreenState extends State<AlertFormScreen> {
                     helperText: 'Indique aquí cuántas unidades faltan.',
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 24),
                 const Text('Foto de evidencia opcional'),
                 if (_photo != null) ...[
                   const SizedBox(height: 8),

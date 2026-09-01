@@ -122,6 +122,7 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
                   _load();
                 },
               ),
+            const SizedBox(height: 20),
             if (_stocks != null)
               FutureBuilder<List<dynamic>>(
                 future: _stocks,
@@ -140,6 +141,7 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
                           data: raw as Map<String, dynamic>,
                           onChanged: (id, value) => _counts[id] = value,
                         ),
+                      const SizedBox(height: 16),
                       TextField(
                         controller: _note,
                         maxLines: 3,
@@ -147,7 +149,7 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
                           labelText: 'Observaciones (si hay diferencia)',
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       FilledButton(
                         onPressed: () => _submit(stocks),
                         child: const Text('Registrar'),
@@ -181,6 +183,7 @@ class _Row extends StatelessWidget {
                 'Prenda #${data['tipo_prenda_id']}',
           ),
           Text('Esperado: ${data['cantidad_en_area']}'),
+          const SizedBox(height: 10),
           TextField(
             keyboardType: TextInputType.number,
             inputFormatters: [

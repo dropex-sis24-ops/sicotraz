@@ -115,10 +115,69 @@ class _RoleHomeScreenState extends State<RoleHomeScreen> {
                     ),
                   ),
                 const SizedBox(height: 16),
-                for (final action in actions)
+                if (user.rol == 'Ropera') ...[
+                  Card(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CaptureFormScreen(),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.document_scanner_outlined,
+                              size: 56,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Capturar formulario con OCR',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Fotografíe una lista de Salas o Quirófano y revise los datos antes de guardar.',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 18),
+                            FilledButton.icon(
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const CaptureFormScreen(),
+                                ),
+                              ),
+                              icon: const Icon(Icons.photo_camera),
+                              label: const Text('Iniciar captura OCR'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Otras opciones',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                for (final action in actions.where(
+                  (action) =>
+                      user.rol != 'Ropera' || action != 'Capturar formulario',
+                ))
                   Card(
                     child: ListTile(
-                      title: Text(action),
+                      title: Text(
+                        user.rol == 'Ropera' && action == 'Registrar Quirófano'
+                            ? 'Registrar Quirófano manual'
+                            : action,
+                      ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () {
                         if (action == 'Carga de stock inicial') {

@@ -71,6 +71,7 @@ class _CaptureFormScreenState extends State<CaptureFormScreen> {
             icon: const Icon(Icons.photo_camera),
             label: const Text('Tomar foto'),
           ),
+          const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _processing ? null : () => _capture(ImageSource.gallery),
             icon: const Icon(Icons.photo_library),

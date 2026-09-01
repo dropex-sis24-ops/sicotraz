@@ -166,6 +166,7 @@ class _BajaFormScreenState extends State<BajaFormScreen> {
                   .toList(),
               onChanged: (value) => setState(() => _areaId = value),
             ),
+            const SizedBox(height: 16),
             DropdownButtonFormField<int>(
               decoration: const InputDecoration(labelText: 'Prenda'),
               items: clothes
@@ -179,6 +180,7 @@ class _BajaFormScreenState extends State<BajaFormScreen> {
                   .toList(),
               onChanged: (value) => setState(() => _clothId = value),
             ),
+            const SizedBox(height: 16),
             TextField(
               controller: _amount,
               keyboardType: TextInputType.number,
@@ -188,6 +190,7 @@ class _BajaFormScreenState extends State<BajaFormScreen> {
               ],
               decoration: const InputDecoration(labelText: 'Cantidad'),
             ),
+            const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(labelText: 'Motivo'),
               items: _reasons
@@ -198,7 +201,8 @@ class _BajaFormScreenState extends State<BajaFormScreen> {
                   .toList(),
               onChanged: (value) => setState(() => _reason = value),
             ),
-            if (_reason == 'Otro')
+            if (_reason == 'Otro') ...[
+              const SizedBox(height: 16),
               TextField(
                 controller: _description,
                 maxLines: 3,
@@ -206,7 +210,8 @@ class _BajaFormScreenState extends State<BajaFormScreen> {
                   labelText: 'Descripción obligatoria',
                 ),
               ),
-            const SizedBox(height: 12),
+            ],
+            const SizedBox(height: 24),
             const Text('Foto de evidencia opcional'),
             if (_photo != null)
               Image.file(_photo!, height: 160, fit: BoxFit.cover),
