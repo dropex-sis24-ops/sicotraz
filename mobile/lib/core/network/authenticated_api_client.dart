@@ -36,6 +36,8 @@ class AuthenticatedApiClient {
     String token, [
     Map<String, dynamic>? body,
   ]) => _request('PUT', path, token, body);
+  Future<dynamic> delete(String path, String token) =>
+      _request('DELETE', path, token);
 
   Future<String> uploadPhoto(
     String token,

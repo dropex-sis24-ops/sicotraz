@@ -34,6 +34,7 @@ Route::middleware(['auth:sanctum', 'role:Super Admin'])->group(function (): void
     Route::get('/usuarios', [UsuarioController::class, 'index']);
     Route::post('/usuarios', [UsuarioController::class, 'store']);
     Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update']);
+    Route::delete('/usuarios/{usuario}', [UsuarioController::class, 'destroy']);
     Route::patch('/usuarios/{usuario}/desactivar', [UsuarioController::class, 'desactivar']);
     Route::patch('/usuarios/{usuario}/reactivar', [UsuarioController::class, 'reactivar']);
     Route::patch('/usuarios/{usuario}/desbloquear', [UsuarioController::class, 'desbloquear']);

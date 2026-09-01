@@ -6,6 +6,7 @@ use App\Domain\Usuarios\Models\Rol;
 use App\Domain\Usuarios\Models\Usuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -46,11 +47,23 @@ class UsuarioController
         $data = $request->validate([
             'nombre' => ['sometimes', 'required', 'string', 'max:255'],
             'numero_item' => ['sometimes', 'required', 'regex:/^[0-9]{1,10}$/', Rule::unique('usuario', 'numero_item')->ignore($usuario->id)],
+            'carnet_identidad' => ['sometimes', 'required', 'string', 'max:255'],
             'rol_id' => ['sometimes', 'required', 'exists:rol,id'],
             'area_id' => ['sometimes', 'nullable', 'exists:area,id'],
         ]);
         $this->validarAreaPersonalManual($data, $usuario);
+        $carnetCambio = isset($data['carnet_identidad'])
+            && $data['carnet_identidad'] !== $usuario->carnet_identidad;
+        if ($carnetCambio) {
+            $data['password_hash'] = Hash::make($data['carnet_identidad']);
+            $data['debe_cambiar_password'] = true;
+            $data['intentos_fallidos'] = 0;
+            $data['bloqueado_hasta'] = null;
+        }
         $usuario->update($data);
+        if ($carnetCambio) {
+            $usuario->tokens()->delete();
+        }
 
         return response()->json($usuario->fresh()->load(['rol', 'area']));
     }
@@ -90,6 +103,19 @@ class UsuarioController
         return response()->json(['message' => 'Contraseña restablecida correctamente.']);
     }
 
+    public function destroy(Request $request, Usuario $usuario): JsonResponse
+    {
+        abort_if($request->user()->is($usuario), 422, 'No puede eliminar su propia cuenta.');
+        abort_if($this->tieneHistorial($usuario), 422, 'El usuario tiene historial operativo y no puede eliminarse. Desactívelo para conservar la trazabilidad.');
+
+        DB::transaction(function () use ($usuario): void {
+            $usuario->tokens()->delete();
+            $usuario->delete();
+        });
+
+        return response()->json(['message' => 'Usuario eliminado correctamente.']);
+    }
+
     /** @param array<string, mixed> $data */
     private function validarAreaPersonalManual(array $data, ?Usuario $usuario = null): void
     {
@@ -100,5 +126,26 @@ class UsuarioController
         if ($esPersonalManual && $areaId === null) {
             abort(422, 'El Personal manual debe tener un área asignada.');
         }
+    }
+
+    private function tieneHistorial(Usuario $usuario): bool
+    {
+        $referencias = [
+            'lote' => ['usuario_entrega_id', 'usuario_registra_id', 'usuario_recibe_id'],
+            'movimiento_lote' => ['usuario_id'],
+            'verificacion_stock' => ['usuario_id'],
+            'alerta' => ['usuario_reporta_id', 'usuario_resuelve_id'],
+            'baja' => ['usuario_costura_id'],
+            'conflicto_sincronizacion' => ['resuelto_por_id'],
+        ];
+        foreach ($referencias as $tabla => $columnas) {
+            foreach ($columnas as $columna) {
+                if (DB::table($tabla)->where($columna, $usuario->id)->exists()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

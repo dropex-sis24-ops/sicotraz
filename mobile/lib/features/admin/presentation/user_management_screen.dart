@@ -85,13 +85,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     labelText: 'N° de ítem/contrato',
                   ),
                 ),
-                if (user == null)
-                  TextField(
-                    controller: carnet,
-                    decoration: const InputDecoration(
-                      labelText: 'Carnet de identidad (contraseña inicial)',
-                    ),
+                TextField(
+                  controller: carnet,
+                  decoration: InputDecoration(
+                    labelText: user == null
+                        ? 'Carnet de identidad (contraseña inicial)'
+                        : 'Nuevo carnet de identidad (opcional)',
+                    helperText: user == null
+                        ? null
+                        : 'Si lo cambia, la contraseña volverá a ser el nuevo carnet.',
                   ),
+                ),
                 DropdownButtonFormField<String>(
                   initialValue: role,
                   decoration: const InputDecoration(labelText: 'Rol'),
@@ -142,7 +146,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     'rol_id': roleId,
                     'area_id': role == 'Personal manual' ? areaId : null,
                   };
-                  if (user == null) {
+                  if (carnet.text.trim().isNotEmpty) {
                     data['carnet_identidad'] = carnet.text.trim();
                   }
                   if (user == null) {
@@ -207,6 +211,29 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       );
       if (accepted != true) return;
     }
+    if (!mounted) return;
+    if (action == 'Eliminar') {
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Eliminar usuario definitivamente'),
+          content: const Text(
+            'Solo se podrá eliminar si todavía no tiene lotes, alertas, bajas ni otro historial. Esta acción no se puede deshacer.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        ),
+      );
+      if (accepted != true) return;
+    }
     final path = switch (action) {
       'Desactivar' => '/usuarios/$id/desactivar',
       'Reactivar' => '/usuarios/$id/reactivar',
@@ -214,7 +241,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       _ => '/usuarios/$id/resetear-password',
     };
     try {
-      if (action == 'Resetear contraseña') {
+      if (action == 'Eliminar') {
+        await AuthenticatedApiClient().delete('/usuarios/$id', _token);
+      } else if (action == 'Resetear contraseña') {
         await AuthenticatedApiClient().post(path, _token);
       } else {
         await AuthenticatedApiClient().patch(path, _token);
@@ -283,7 +312,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           subtitle: Text(
                             'Ítem: ${user['numero_item']} · ${active ? 'Activo' : 'Inactivo'}',
                           ),
-                          onTap: active ? () => _showForm(user) : null,
+                          onTap: () => _showForm(user),
                           trailing: PopupMenuButton<String>(
                             onSelected: (value) => _action(user, value),
                             itemBuilder: (_) => [
@@ -304,6 +333,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               const PopupMenuItem(
                                 value: 'Resetear contraseña',
                                 child: Text('Resetear contraseña'),
+                              ),
+                              const PopupMenuDivider(),
+                              const PopupMenuItem(
+                                value: 'Eliminar',
+                                child: Text('Eliminar definitivamente'),
                               ),
                             ],
                           ),

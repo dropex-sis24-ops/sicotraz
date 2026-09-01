@@ -281,6 +281,7 @@ No existe un número oficial de cuántas prendas corresponden a cada área — e
 | RF33 | La contraseña por defecto de una cuenta nueva debe ser el número de carnet de identidad del trabajador. |
 | RF34 | El sistema NO debe ofrecer opción de "olvidé mi contraseña"; el restablecimiento de contraseña es exclusivo del Super Admin. |
 | RF46 | El Super Admin debe poder desbloquear manualmente una cuenta bloqueada. |
+| RF47 | El Super Admin puede corregir el carnet de identidad de un usuario; al cambiarlo, la contraseña temporal pasa a ser el nuevo carnet. También puede eliminar definitivamente una cuenta únicamente si todavía no tiene historial operativo; si tiene historial, solo puede desactivarla. |
 | RF41 | El Super Admin debe poder agregar, editar o desactivar tipos de prenda del catálogo (sección 4.3), sin necesidad de modificar código. |
 | RF42 | El Super Admin debe poder agregar, editar o desactivar áreas, sus alias reconocidos y las plantillas de formulario, sin necesidad de modificar código. |
 
@@ -374,7 +375,7 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 - **HU01.** Como usuario del sistema, quiero iniciar sesión con mi número de ítem/contrato y contraseña, para acceder solo a las funciones de mi rol.
   *Criterios de aceptación:* login válido da acceso; login inválido lo rechaza; no existe opción de autoregistro ni de "olvidé mi contraseña" — solo el Super Admin crea cuentas y restablece contraseñas (RF32–RF34).
 - **HU02.** Como Super Admin, quiero gestionar los 5 roles del sistema, para controlar qué puede hacer cada tipo de usuario.
-  *Criterios de aceptación:* existen exactamente los 5 roles definidos; cada rol solo ve las opciones permitidas para él.
+  *Criterios de aceptación:* existen exactamente los 5 roles definidos; cada rol solo ve las opciones permitidas para él; el Super Admin puede corregir nombre, ítem, carnet, rol y área, y eliminar únicamente cuentas sin historial operativo.
 - **HU23.** Como Super Admin, quiero crear una cuenta nueva con contraseña inicial igual al carnet del trabajador, para entregarle acceso sin que él se autoregistre.
   *Criterios de aceptación:* la cuenta se crea con `debe_cambiar_password = true`; no existe pantalla de registro público en la app.
 - **HU26.** Como Super Admin, quiero agregar, editar o desactivar tipos de prenda y áreas del catálogo, para adaptar el sistema si el hospital cambia sus artículos o servicios sin depender de un programador.
@@ -514,7 +515,7 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 - [x] Se ejecutó la prueba de extremo a extremo por cada épica (sección 25.3), con evidencia documentada para el capítulo de pruebas de la tesis.
 - [x] La paleta de colores de la sección 11.2 está aplicada de forma consistente en toda la app.
 
-**Cierre Sprint 5 (30/08/2026):** cola offline SQLite para lotes, alertas, bajas y verificaciones; caché local de catálogos; sincronización automática e idempotente; indicador global de estado; conservación y resolución manual de conflictos en Pantalla 21. Validación: 26 pruebas backend (145 verificaciones), 7 pruebas Flutter, análisis estático limpio y APK arm64 build 2007. La build 2006 fue instalada y abierta sin cierre inesperado en dispositivo físico; la 2007 agrega el filtrado de prendas según la plantilla del área. Evidencia consolidada en `Evidencia_Pruebas_Sprint_5.md`.
+**Cierre Sprint 5 (30/08/2026; mantenimiento 01/09/2026):** cola offline SQLite para lotes, alertas, bajas y verificaciones; caché local de catálogos; sincronización automática e idempotente; indicador global de estado; conservación y resolución manual de conflictos en Pantalla 21. Validación acumulada: 29 pruebas backend (158 verificaciones), 7 pruebas Flutter y análisis estático limpio. La APK arm64 build 2008 incorpora filtrado de prendas por área, edición de carnet y eliminación controlada de usuarios. Evidencia consolidada en `Evidencia_Pruebas_Sprint_5.md`.
 
 ---
 
@@ -777,7 +778,7 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 
 **Rol(es) que la usan:** Super Admin
 **HU/RF relacionados:** HU02, HU23
-**Objetivo de la pantalla:** Crear, editar, desactivar y resetear contraseñas de las cuentas de trabajadores.
+**Objetivo de la pantalla:** Crear, editar —incluido el carnet—, desactivar, eliminar cuentas sin historial y resetear contraseñas de trabajadores.
 
 ```
 ┌─────────────────────────────┐
@@ -808,16 +809,18 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 | 1 | Botón "Nuevo usuario" | Botón primario | — | Abre formulario de creación |
 | 2 | Buscador | Input texto | — | Filtra por nombre o número de ítem |
 | 3 | Lista de usuarios | Lista de tarjetas | — | Muestra nombre, rol, ítem, estado (activo/inactivo) |
-| 4 | Menú de acciones (⋮) | Menú contextual | — | Editar, Desactivar/Reactivar, Resetear contraseña |
+| 4 | Menú de acciones (⋮) | Menú contextual | — | Editar, Desactivar/Reactivar, Resetear contraseña y Eliminar definitivamente si no tiene historial |
 
-**[DECISIÓN — confirmada por el usuario]** Nunca se borra una cuenta por completo — solo se **desactiva**, para preservar el historial ante una posible auditoría. Un usuario desactivado no puede iniciar sesión, pero sus registros pasados (lotes, alertas, etc.) se mantienen intactos.
+**[DECISIÓN — actualizada y confirmada por el usuario, 01/09/2026]** Una cuenta sin historial operativo puede eliminarse definitivamente, lo que libera su número de ítem para volver a registrarlo. Si la cuenta ya aparece en lotes, movimientos, verificaciones, alertas, bajas o conflictos, no puede borrarse: solo se **desactiva**, preservando la trazabilidad. El Super Admin tampoco puede eliminar su propia cuenta.
+
+**[DECISIÓN — confirmada por el usuario, 01/09/2026]** El carnet de identidad puede corregirse desde Editar usuario, incluso si la cuenta está inactiva. Al modificarlo, la contraseña se restablece automáticamente al nuevo carnet, se exige cambio en el siguiente ingreso y se cierran los tokens anteriores.
 
 **[DECISIÓN — confirmada por el usuario]** Al resetear la contraseña de un usuario, esta vuelve a ser su número de carnet de identidad (igual que en la creación de cuenta inicial), y automáticamente se le vuelve a exigir el cambio obligatorio (Pantalla 2) en su próximo ingreso.
 
 **Estados:**
 
 - **Lista vacía / cargando**
-- **Usuario desactivado:** aparece visualmente distinto (atenuado, con etiqueta "Inactivo"), no se puede editar su rol pero sí reactivarlo.
+- **Usuario desactivado:** aparece visualmente distinto (atenuado, con etiqueta "Inactivo"), pero puede editarse, reactivarse o eliminarse si no tiene historial.
 - **Confirmación antes de desactivar:** modal de confirmación, ya que afecta el acceso del trabajador.
 
 **Navegación:**
@@ -1592,7 +1595,7 @@ Componente pequeño (barra o ícono), no una pantalla completa — aparece en la
 
 | Entidad | Atributos clave | Notas |
 |---|---|---|
-| **usuario** | id, nombre, numero_item (máx. 10 dígitos), carnet_identidad, password_hash, rol_id (FK), area_id (FK, nullable), activo, debe_cambiar_password, intentos_fallidos, bloqueado_hasta | `area_id` es obligatoria para Personal manual y permite abrir automáticamente su verificación de turno; permanece vacía para los demás roles. RF01, RF02, RF32–RF36, RF46 |
+| **usuario** | id, nombre, numero_item (máx. 10 dígitos), carnet_identidad, password_hash, rol_id (FK), area_id (FK, nullable), activo, debe_cambiar_password, intentos_fallidos, bloqueado_hasta | `area_id` es obligatoria para Personal manual y permite abrir automáticamente su verificación de turno; permanece vacía para los demás roles. Solo una cuenta sin historial operativo puede eliminarse. RF01, RF02, RF32–RF36, RF46–RF47 |
 | **rol** | id, nombre | Los 5 roles fijos (sección 2) |
 | **area** | id, nombre, activo | Incluye las 11 áreas del catálogo OCR (sección 4.4) MÁS Quirófano. Piloto de stock activo: Cirugía Varones y Quirófano. `activo` permite desactivar sin borrar (RF42) |
 | **alias_area** | id, area_id (FK), alias_normalizado, activo | Variantes como C.V., CV, CIRUGIA VARONES o Cirugia Varones apuntan al área oficial; el Super Admin las administra. |
@@ -1776,6 +1779,7 @@ erDiagram
 - Al registrar una `baja`, el sistema debe restar automáticamente de `cantidad_total` en `stock_area` (RF23).
 - `plantilla_id` en `lote` es obligatorio solo si `origen_registro = 'ocr_local'`.
 - La contraseña inicial de un usuario nuevo se genera automáticamente a partir de `carnet_identidad` (RF33); el campo `debe_cambiar_password` queda en `true` hasta que el usuario la cambie (RF35, aprobado).
+- Si el Super Admin corrige `carnet_identidad`, la contraseña se restablece al nuevo carnet y vuelve a exigirse cambio obligatorio. Una cuenta solo puede eliminarse si no tiene referencias operativas; en caso contrario debe desactivarse (RF47).
 - Tras 5 intentos fallidos consecutivos de inicio de sesión, la cuenta se bloquea por 5 minutos; el Super Admin puede desbloquearla antes (RF36, RF46).
 - Los alias de área se normalizan (mayúsculas, sin tildes ni puntuación) antes de compararlos; varios alias pueden apuntar a una misma área oficial.
 - `peso_kg` se registra manualmente una vez por lote y nunca se calcula a partir de sus prendas.
@@ -2432,10 +2436,11 @@ Coincide con el objetivo específico de la tesis ("validar el funcionamiento del
 | GET | `/api/usuarios` | Lista usuarios (con filtro `?buscar=`) | HU02 |
 | POST | `/api/usuarios` | Crea usuario (password inicial = carnet) | HU23 |
 | PUT | `/api/usuarios/{id}` | Edita datos/rol de un usuario | HU02 |
-| PATCH | `/api/usuarios/{id}/desactivar` | Desactiva (nunca borra) | HU02 |
+| PATCH | `/api/usuarios/{id}/desactivar` | Desactiva conservando el historial | HU02 |
 | PATCH | `/api/usuarios/{id}/reactivar` | Reactiva cuenta | HU02 |
 | PATCH | `/api/usuarios/{id}/desbloquear` | Desbloquea una cuenta antes de que venza el bloqueo de 5 minutos | RF46 |
 | POST | `/api/usuarios/{id}/resetear-password` | Vuelve la contraseña al carnet, marca `debe_cambiar_password = true` | HU02 |
+| DELETE | `/api/usuarios/{id}` | Elimina únicamente una cuenta sin historial operativo y libera su número de ítem | RF47 |
 
 **Catálogo (Super Admin)**
 | Método | Ruta | Descripción | HU/RF |
