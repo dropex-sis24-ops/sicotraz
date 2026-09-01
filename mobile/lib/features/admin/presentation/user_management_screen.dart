@@ -78,6 +78,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     labelText: 'Nombre completo',
                   ),
                 ),
+                const SizedBox(height: 14),
                 TextField(
                   controller: item,
                   keyboardType: TextInputType.number,
@@ -85,6 +86,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     labelText: 'N° de ítem/contrato',
                   ),
                 ),
+                const SizedBox(height: 14),
                 TextField(
                   controller: carnet,
                   decoration: InputDecoration(
@@ -96,6 +98,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         : 'Si lo cambia, la contraseña volverá a ser el nuevo carnet.',
                   ),
                 ),
+                const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
                   initialValue: role,
                   decoration: const InputDecoration(labelText: 'Rol'),
@@ -107,6 +110,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       .toList(),
                   onChanged: (value) => setDialog(() => role = value!),
                 ),
+                if (role == 'Personal manual') const SizedBox(height: 14),
                 if (role == 'Personal manual')
                   DropdownButtonFormField<int>(
                     initialValue: areaId,

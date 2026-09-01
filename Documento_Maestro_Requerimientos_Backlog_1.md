@@ -515,7 +515,7 @@ Cada Historia de Usuario nace directamente de los RF de la sección 6 — no se 
 - [x] Se ejecutó la prueba de extremo a extremo por cada épica (sección 25.3), con evidencia documentada para el capítulo de pruebas de la tesis.
 - [x] La paleta de colores de la sección 11.2 está aplicada de forma consistente en toda la app.
 
-**Cierre Sprint 5 (30/08/2026; mantenimiento 01/09/2026):** cola offline SQLite para lotes, alertas, bajas y verificaciones; caché local de catálogos; sincronización automática e idempotente; indicador global de estado; conservación y resolución manual de conflictos en Pantalla 21. Validación acumulada: 29 pruebas backend (158 verificaciones), 7 pruebas Flutter y análisis estático limpio. La APK arm64 build 2008 incorpora filtrado de prendas por área, edición de carnet y eliminación controlada de usuarios. Evidencia consolidada en `Evidencia_Pruebas_Sprint_5.md`.
+**Cierre Sprint 5 (30/08/2026; mantenimiento 01/09/2026):** cola offline SQLite para lotes, alertas, bajas y verificaciones; caché local de catálogos; sincronización automática e idempotente; indicador global de estado; conservación y resolución manual de conflictos en Pantalla 21. Validación acumulada: 29 pruebas backend (158 verificaciones), 7 pruebas Flutter y análisis estático limpio. La APK arm64 build 2009 incorpora filtrado de prendas por área, edición de carnet, eliminación controlada de usuarios y mejor espaciado del formulario de usuarios. Evidencia consolidada en `Evidencia_Pruebas_Sprint_5.md`.
 
 ---
 

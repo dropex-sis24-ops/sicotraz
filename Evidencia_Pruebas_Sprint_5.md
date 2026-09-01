@@ -17,9 +17,9 @@ Fecha: 30/08/2026
 - Backend: 29 pruebas, 158 verificaciones, todas aprobadas.
 - Flutter: análisis estático sin observaciones y 7 pruebas aprobadas.
 - Base local: migración del Sprint 5 aplicada en MySQL.
-- Android físico: APK arm64 build 2006 instalada en el dispositivo `a3fd45f0`; actividad principal abierta y mantenida en primer plano sin excepción fatal. Build 2008 compilada con filtrado de prendas por plantilla, edición de carnet y eliminación controlada de usuarios; instalación pendiente porque el dispositivo se desconectó de ADB.
+- Android físico: APK arm64 build 2006 instalada en el dispositivo `a3fd45f0`; actividad principal abierta y mantenida en primer plano sin excepción fatal. Build 2009 compilada con filtrado de prendas por plantilla, edición de carnet, eliminación controlada de usuarios y ajuste visual del formulario; instalación pendiente porque el dispositivo se desconectó de ADB.
 - API de desarrollo: respuesta HTTP 200 mediante el dominio ngrok configurado.
-- Artefacto: `mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`, build 2008, 28.4 MB.
-- SHA-256: `acc9dc32e5b07ddc8e80c550052d8903fc122e1bb4aebc5bfdcaaf846fc6d895`.
+- Artefacto: `mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`, build 2009, 28.4 MB.
+- SHA-256: `9fa1c8b5acb19d564a640669eaca36d69dffff29db0d0d5c4f7cb3019087e25c`.
 
 La prueba operativa con usuarios reales y datos institucionales queda para la validación de campo; no modifica el cierre técnico del sprint.
