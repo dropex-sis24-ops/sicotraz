@@ -20,6 +20,8 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
   final _amounts = <int, TextEditingController>{};
   late Future<List<List<dynamic>>> _catalogue;
   int? _areaId;
+  bool _prepared = false;
+  List<OcrAmbiguity> _unresolved = const [];
   bool _saving = false;
   String? _message;
 
@@ -50,14 +52,36 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
   }
 
   void _prepare(List<dynamic> areas, List<dynamic> clothes) {
+    if (_prepared) return;
+    _prepared = true;
     const matcher = OcrCatalogMatcher();
     _areaId ??= matcher.areaId(widget.result.rawText, areas);
-    for (final entry in matcher.clothes(widget.result.lines, clothes).entries) {
+    final matched = matcher.clothesWithReview(widget.result.lines, clothes);
+    for (final entry in matched.quantities.entries) {
       _amounts.putIfAbsent(
         entry.key,
         () => TextEditingController(text: '${entry.value}'),
       );
     }
+    // Las líneas que no se pudieron resolver se muestran para que la persona
+    // elija la prenda, en lugar de asignarlas a la primera parecida.
+    _unresolved = matched.unresolved;
+  }
+
+  /// Añade al formulario una línea dudosa con la prenda que eligió la persona.
+  void _assign(OcrAmbiguity line, int tipoPrendaId) {
+    setState(() {
+      final existente = _amounts[tipoPrendaId];
+      if (existente == null) {
+        _amounts[tipoPrendaId] = TextEditingController(
+          text: '${line.quantity}',
+        );
+      } else {
+        final actual = int.tryParse(existente.text) ?? 0;
+        existente.text = '${actual + line.quantity}';
+      }
+      _unresolved = _unresolved.where((item) => item != line).toList();
+    });
   }
 
   Future<void> _save() async {
@@ -206,6 +230,58 @@ class _OcrReviewScreenState extends State<OcrReviewScreen> {
               const Text(
                 'No hubo coincidencias. Use Registro manual como respaldo.',
               ),
+            if (_unresolved.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text(
+                'Líneas por confirmar',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+              const Text(
+                'La lectura no identifica con certeza estas prendas. '
+                'Elija cuál corresponde o déjelas fuera del lote.',
+              ),
+              for (final line in _unresolved)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('"${line.label}" — ${line.quantity} unidad(es)'),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<int>(
+                          decoration: const InputDecoration(
+                            labelText: 'Asignar a la prenda',
+                          ),
+                          items:
+                              (line.isUnknown
+                                      ? clothes.cast<Map<String, dynamic>>()
+                                      : clothes
+                                            .cast<Map<String, dynamic>>()
+                                            .where(
+                                              (c) => line.candidates.contains(
+                                                c['id'],
+                                              ),
+                                            ))
+                                  .map(
+                                    (c) => DropdownMenuItem(
+                                      value: c['id'] as int,
+                                      child: Text(c['nombre'] as String),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged: (value) {
+                            if (value != null) _assign(line, value);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _saving ? null : _save,

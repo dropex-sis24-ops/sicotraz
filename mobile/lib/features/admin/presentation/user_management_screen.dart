@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/network/authenticated_api_client.dart';
 import '../../auth/application/session_controller.dart';
 
@@ -12,22 +13,83 @@ class UserManagementScreen extends StatefulWidget {
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
-  static const _roles = [
-    'Super Admin',
-    'Encargado de Ropería y Lavandería',
-    'Ropera',
-    'Personal manual',
-    'Costura',
-  ];
+  final _api = AuthenticatedApiClient();
   final _search = TextEditingController();
-  late Future<List<dynamic>> _users;
+  final List<dynamic> _items = [];
+  // Los identificadores de rol se leen del servidor: deducirlos de la posición
+  // en una lista fija del cliente asignaba el rol equivocado si los ids de la
+  // tabla no eran 1..5 en ese mismo orden.
+  List<Map<String, dynamic>> _roles = const [];
+  int _page = 1;
+  bool _loading = false;
+  bool _hasMore = true;
+  String? _error;
 
-  String get _token => context.read<SessionController>().token!;
+  String? get _token => context.read<SessionController>().token;
 
   @override
   void initState() {
     super.initState();
-    _reload();
+    _loadRoles();
+    _load(reset: true);
+  }
+
+  Future<void> _loadRoles() async {
+    final token = _token;
+    if (token == null) return;
+    try {
+      final roles = await _api.get('/catalogo/roles', token) as List<dynamic>;
+      if (mounted) {
+        setState(() => _roles = roles.cast<Map<String, dynamic>>());
+      }
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'No fue posible cargar los roles. '
+              'Revise su conexión antes de crear usuarios.',
+        );
+      }
+    }
+  }
+
+  Future<void> _load({bool reset = false}) async {
+    final token = _token;
+    if (token == null || _loading) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+      if (reset) {
+        _items.clear();
+        _page = 1;
+        _hasMore = true;
+      }
+    });
+    try {
+      final body =
+          await _api.get(
+                '/usuarios?page=$_page&per_page=20'
+                '&buscar=${Uri.encodeQueryComponent(_search.text)}',
+                token,
+              )
+              as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() {
+        _items.addAll(body['data'] as List<dynamic>);
+        _hasMore = body['next_page_url'] != null;
+        if (_hasMore) _page++;
+      });
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'No fue posible cargar los usuarios.');
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -36,21 +98,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     super.dispose();
   }
 
-  void _reload() {
-    _users = AuthenticatedApiClient()
-        .get(
-          '/usuarios?buscar=${Uri.encodeQueryComponent(_search.text)}',
-          _token,
-        )
-        .then(
-          (value) => (value as Map<String, dynamic>)['data'] as List<dynamic>,
-        );
-  }
-
   Future<void> _showForm([Map<String, dynamic>? user]) async {
-    final areas =
-        await AuthenticatedApiClient().get('/catalogo/areas', _token)
-            as List<dynamic>;
+    final token = _token;
+    if (token == null) return;
+    if (_roles.isEmpty) {
+      await _loadRoles();
+      if (!mounted || _roles.isEmpty) return;
+    }
+    final areas = await _api.get('/catalogo/areas', token) as List<dynamic>;
     if (!mounted) {
       return;
     }
@@ -61,7 +116,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final carnet = TextEditingController();
     String role =
         (user?['rol'] as Map<String, dynamic>?)?['nombre'] as String? ??
-        _roles.first;
+        _roles.first['nombre'] as String;
     int? areaId = (user?['area_id'] as num?)?.toInt();
     final saved = await showDialog<bool>(
       context: context,
@@ -104,8 +159,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   decoration: const InputDecoration(labelText: 'Rol'),
                   items: _roles
                       .map(
-                        (value) =>
-                            DropdownMenuItem(value: value, child: Text(value)),
+                        (rol) => DropdownMenuItem(
+                          value: rol['nombre'] as String,
+                          child: Text(rol['nombre'] as String),
+                        ),
                       )
                       .toList(),
                   onChanged: (value) => setDialog(() => role = value!),
@@ -142,7 +199,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
             FilledButton(
               onPressed: () async {
-                final roleId = _roles.indexOf(role) + 1;
+                final roleId =
+                    _roles.firstWhere((rol) => rol['nombre'] == role)['id']
+                        as int;
                 try {
                   final data = <String, dynamic>{
                     'nombre': name.text.trim(),
@@ -154,17 +213,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     data['carnet_identidad'] = carnet.text.trim();
                   }
                   if (user == null) {
-                    await AuthenticatedApiClient().post(
-                      '/usuarios',
-                      _token,
-                      data,
-                    );
+                    await _api.post('/usuarios', token, data);
                   } else {
-                    await AuthenticatedApiClient().put(
-                      '/usuarios/${user['id']}',
-                      _token,
-                      data,
-                    );
+                    await _api.put('/usuarios/${user['id']}', token, data);
                   }
                   if (dialogContext.mounted) {
                     Navigator.pop(dialogContext, true);
@@ -187,11 +238,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     item.dispose();
     carnet.dispose();
     if (saved == true && mounted) {
-      setState(_reload);
+      await _load(reset: true);
     }
   }
 
   Future<void> _action(Map<String, dynamic> user, String action) async {
+    final token = _token;
+    if (token == null) return;
     final id = user['id'];
     if (action == 'Desactivar') {
       final accepted = await showDialog<bool>(
@@ -246,14 +299,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     };
     try {
       if (action == 'Eliminar') {
-        await AuthenticatedApiClient().delete('/usuarios/$id', _token);
+        await _api.delete('/usuarios/$id', token);
       } else if (action == 'Resetear contraseña') {
-        await AuthenticatedApiClient().post(path, _token);
+        await _api.post(path, token);
       } else {
-        await AuthenticatedApiClient().patch(path, _token);
+        await _api.patch(path, token);
       }
       if (mounted) {
-        setState(_reload);
+        await _load(reset: true);
       }
     } catch (error) {
       if (mounted) {
@@ -283,28 +336,52 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               prefixIcon: const Icon(Icons.search),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.search),
-                onPressed: () => setState(_reload),
+                onPressed: () => _load(reset: true),
               ),
             ),
-            onSubmitted: (_) => setState(_reload),
+            onSubmitted: (_) => _load(reset: true),
           ),
         ),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
         Expanded(
-          child: FutureBuilder<List<dynamic>>(
-            future: _users,
-            builder: (_, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
+          child: Builder(
+            builder: (_) {
+              if (_items.isEmpty) {
+                if (_loading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                return const Center(
+                  child: Text('No hay usuarios que mostrar.'),
+                );
               }
               return RefreshIndicator(
-                onRefresh: () async {
-                  setState(_reload);
-                  await _users;
-                },
+                onRefresh: () => _load(reset: true),
                 child: ListView.builder(
-                  itemCount: snapshot.data!.length,
+                  // Antes solo se leía la primera página: a partir del usuario
+                  // 21 las cuentas eran invisibles e imposibles de administrar.
+                  itemCount: _items.length + (_hasMore ? 1 : 0),
                   itemBuilder: (_, index) {
-                    final user = snapshot.data![index] as Map<String, dynamic>;
+                    if (index == _items.length) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Center(
+                          child: _loading
+                              ? const CircularProgressIndicator()
+                              : OutlinedButton(
+                                  onPressed: _load,
+                                  child: const Text('Cargar más usuarios'),
+                                ),
+                        ),
+                      );
+                    }
+                    final user = _items[index] as Map<String, dynamic>;
                     final active = user['activo'] == true;
                     final role =
                         (user['rol'] as Map<String, dynamic>?)?['nombre'] ?? '';

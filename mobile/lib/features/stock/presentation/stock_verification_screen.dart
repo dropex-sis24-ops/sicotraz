@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../../core/sync/sync_controller.dart';
 import '../../auth/application/session_controller.dart';
 
@@ -18,6 +19,7 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
   final _note = TextEditingController();
   final Map<int, int> _counts = {};
   String? _result;
+  bool _sending = false;
   late Future<List<dynamic>> _areas;
 
   @override
@@ -57,14 +59,26 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
   }
 
   Future<void> _submit(List<dynamic> stocks) async {
+    final pendientes = stocks
+        .map((raw) => (raw as Map<String, dynamic>)['tipo_prenda_id'] as int)
+        .where((id) => !_counts.containsKey(id))
+        .length;
+    if (pendientes > 0) {
+      setState(
+        () => _result =
+            'Falta contar $pendientes prenda(s). Escriba 0 si no encontró ninguna.',
+      );
+      return;
+    }
     final details = stocks.map((raw) {
       final stock = raw as Map<String, dynamic>;
       final id = stock['tipo_prenda_id'] as int;
-      return {
-        'tipo_prenda_id': id,
-        'cantidad_contada': _counts[id] ?? stock['cantidad_en_area'],
-      };
+      return {'tipo_prenda_id': id, 'cantidad_contada': _counts[id]!};
     }).toList();
+    setState(() {
+      _sending = true;
+      _result = null;
+    });
     try {
       final submission = await context.read<SyncController>().submit(
         entityType: 'verificacion_stock',
@@ -76,17 +90,39 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
         },
       );
       if (mounted) {
+        setState(() {
+          _result = submission.queued
+              ? 'Verificación guardada sin conexión; pendiente de sincronizar.'
+              : _describirResultado(
+                  (submission.response as Map<String, dynamic>)['resultado']
+                      as String,
+                );
+          // Sin limpiar el formulario se podía registrar la misma
+          // verificación varias veces seguidas.
+          _counts.clear();
+          _note.clear();
+          _load();
+        });
+      }
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _result = error.message);
+    } catch (_) {
+      if (mounted) {
         setState(
-          () => _result = submission.queued
-              ? 'Guardada sin conexión; pendiente de sincronizar.'
-              : (submission.response as Map<String, dynamic>)['resultado']
-                    as String,
+          () => _result =
+              'No fue posible registrar la verificación. '
+              'Vuelva a intentarlo.',
         );
       }
-    } catch (error) {
-      setState(() => _result = '$error');
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
+
+  String _describirResultado(String resultado) =>
+      resultado == 'irregularidad_reportada'
+      ? 'Registrada con diferencias respecto al stock del sistema.'
+      : 'Registrada sin novedad: el conteo coincide con el sistema.';
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -118,7 +154,13 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
                   );
                 }).toList(),
                 onChanged: (v) {
-                  _areaId = v;
+                  setState(() {
+                    _areaId = v;
+                    // Los conteos pertenecen al área anterior.
+                    _counts.clear();
+                    _note.clear();
+                    _result = null;
+                  });
                   _load();
                 },
               ),
@@ -140,6 +182,7 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
                         _Row(
                           data: raw as Map<String, dynamic>,
                           onChanged: (id, value) => _counts[id] = value,
+                          onCleared: _counts.remove,
                         ),
                       const SizedBox(height: 16),
                       TextField(
@@ -151,8 +194,10 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
                       ),
                       const SizedBox(height: 24),
                       FilledButton(
-                        onPressed: () => _submit(stocks),
-                        child: const Text('Registrar'),
+                        onPressed: _sending ? null : () => _submit(stocks),
+                        child: Text(
+                          _sending ? 'Registrando…' : 'Registrar conteo',
+                        ),
                       ),
                       if (_result != null) Text(_result!),
                     ],
@@ -167,9 +212,14 @@ class _StockVerificationScreenState extends State<StockVerificationScreen> {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.data, required this.onChanged});
+  const _Row({
+    required this.data,
+    required this.onChanged,
+    required this.onCleared,
+  });
   final Map<String, dynamic> data;
   final void Function(int, int) onChanged;
+  final void Function(int) onCleared;
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
@@ -182,6 +232,9 @@ class _Row extends StatelessWidget {
                     as String? ??
                 'Prenda #${data['tipo_prenda_id']}',
           ),
+          // La Pantalla 11 del documento maestro muestra "Esperado" junto al
+          // conteo. Lo que no debe ocurrir es que ese valor se envíe solo:
+          // el campo "Contado" es obligatorio (elemento 2 de la pantalla).
           Text('Esperado: ${data['cantidad_en_area']}'),
           const SizedBox(height: 10),
           TextField(
@@ -190,11 +243,18 @@ class _Row extends StatelessWidget {
               FilteringTextInputFormatter.digitsOnly,
               LengthLimitingTextInputFormatter(3),
             ],
-            decoration: const InputDecoration(labelText: 'Contado'),
-            onChanged: (value) => onChanged(
-              data['tipo_prenda_id'] as int,
-              int.tryParse(value) ?? 0,
+            decoration: const InputDecoration(
+              labelText: 'Contado',
+              helperText: 'Cuente las prendas físicamente',
             ),
+            onChanged: (value) {
+              final cantidad = int.tryParse(value);
+              if (cantidad == null) {
+                onCleared(data['tipo_prenda_id'] as int);
+              } else {
+                onChanged(data['tipo_prenda_id'] as int, cantidad);
+              }
+            },
           ),
         ],
       ),

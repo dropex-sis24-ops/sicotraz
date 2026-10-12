@@ -31,6 +31,10 @@ class SessionController extends ChangeNotifier {
   String? errorMessage;
   String? get token => _token;
 
+  /// Se ejecuta al cerrar o perder la sesión para borrar lo que quede del
+  /// usuario en el dispositivo (cola de sincronización y caché).
+  Future<void> Function()? onSessionCleared;
+
   Future<void> restore() async {
     status = SessionStatus.loading;
     notifyListeners();
@@ -47,14 +51,43 @@ class SessionController extends ChangeNotifier {
         status = user!.debeCambiarPassword
             ? SessionStatus.passwordChangeRequired
             : SessionStatus.authenticated;
-      } else {
-        status = SessionStatus.unauthenticated;
+        notifyListeners();
+        await _descartarSesionRevocada(token);
+        return;
       }
+      status = SessionStatus.unauthenticated;
     } catch (_) {
       await _clearStoredSession();
       status = SessionStatus.unauthenticated;
     }
 
+    notifyListeners();
+  }
+
+  /// Si el token ya no vale (cuenta desactivada o contraseña restablecida) hay
+  /// que volver al login en lugar de dejar una app en la que todo falla. Un
+  /// fallo de red no cierra la sesión: la app funciona sin conexión.
+  Future<void> _descartarSesionRevocada(String token) async {
+    try {
+      await _api.verificarSesion(token);
+    } on ApiException catch (error) {
+      if (error.isUnauthenticated) {
+        errorMessage = 'Su sesión expiró. Vuelva a ingresar.';
+        await handleSessionExpired();
+      }
+    } catch (_) {
+      // Sin conexión: se conserva la sesión para poder trabajar offline.
+    }
+  }
+
+  /// Cierra la sesión local sin llamar al servidor, que ya rechazó el token.
+  Future<void> handleSessionExpired() async {
+    if (status == SessionStatus.unauthenticated) return;
+    await _clearStoredSession();
+    await onSessionCleared?.call();
+    user = null;
+    _token = null;
+    status = SessionStatus.unauthenticated;
     notifyListeners();
   }
 
@@ -85,7 +118,11 @@ class SessionController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> changePassword(String passwordNueva, String confirmation) async {
+  Future<void> changePassword(
+    String passwordActual,
+    String passwordNueva,
+    String confirmation,
+  ) async {
     if (_token == null) {
       await logout();
       return;
@@ -98,6 +135,7 @@ class SessionController extends ChangeNotifier {
     try {
       user = await _api.cambiarPassword(
         token: _token!,
+        passwordActual: passwordActual,
         passwordNueva: passwordNueva,
         passwordNuevaConfirmation: confirmation,
       );
@@ -118,8 +156,13 @@ class SessionController extends ChangeNotifier {
     final token = _token;
     try {
       if (token != null) await _api.logout(token);
+    } catch (_) {
+      // Aunque el servidor no responda, la sesión se cierra en el dispositivo.
     } finally {
       await _clearStoredSession();
+      // En una tablet compartida, los datos del turno anterior no deben
+      // quedar disponibles para el siguiente usuario.
+      await onSessionCleared?.call();
       user = null;
       _token = null;
       errorMessage = null;

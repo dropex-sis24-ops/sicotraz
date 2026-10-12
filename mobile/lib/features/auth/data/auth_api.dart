@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/authenticated_api_client.dart';
 import '../domain/session_user.dart';
 
 class LoginResult {
@@ -43,10 +44,12 @@ class AuthApi {
 
   Future<SessionUser> cambiarPassword({
     required String token,
+    required String passwordActual,
     required String passwordNueva,
     required String passwordNuevaConfirmation,
   }) async {
     final response = await _post('/cambiar-password', {
+      'password_actual': passwordActual,
       'password_nueva': passwordNueva,
       'password_nueva_confirmation': passwordNuevaConfirmation,
     }, token: token);
@@ -60,19 +63,27 @@ class AuthApi {
     if (response.statusCode != 204) _decode(response);
   }
 
+  /// Comprueba contra el servidor que el token guardado sigue siendo válido:
+  /// al desactivar la cuenta o restablecer la contraseña queda revocado.
+  Future<void> verificarSesion(String token) async {
+    await AuthenticatedApiClient(client: _client).get('/catalogo/areas', token);
+  }
+
   Future<http.Response> _post(
     String path,
     Map<String, dynamic> body, {
     String? token,
-  }) => _client.post(
-    Uri.parse('$_baseUrl$path'),
-    headers: {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    },
-    body: jsonEncode(body),
-  );
+  }) => _client
+      .post(
+        Uri.parse('$_baseUrl$path'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(body),
+      )
+      .timeout(AuthenticatedApiClient.timeout);
 
   Map<String, dynamic> _decode(http.Response response) {
     final body = response.body.isEmpty
@@ -80,9 +91,11 @@ class AuthApi {
         : jsonDecode(response.body) as Map<String, dynamic>;
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(
-        body['message'] as String? ?? 'No fue posible completar la operación.',
-        statusCode: response.statusCode,
+      // Un 422 trae el detalle en `errors`; su `message` es genérico.
+      throw ApiException.fromBody(
+        body,
+        response.statusCode,
+        fallback: 'No fue posible completar la operación.',
       );
     }
 

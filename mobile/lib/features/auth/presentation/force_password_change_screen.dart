@@ -12,11 +12,13 @@ class ForcePasswordChangeScreen extends StatefulWidget {
 }
 
 class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
+  final _currentController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmationController = TextEditingController();
 
   @override
   void dispose() {
+    _currentController.dispose();
     _passwordController.dispose();
     _confirmationController.dispose();
     super.dispose();
@@ -24,12 +26,14 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
 
   bool get _validPassword {
     final password = _passwordController.text;
-    return password.length >= 8 &&
+    return _currentController.text.isNotEmpty &&
+        password.length >= 8 &&
         password.length <= 30 &&
         RegExp(r'[A-Z]').hasMatch(password) &&
         RegExp(r'[a-z]').hasMatch(password) &&
         RegExp(r'[0-9]').hasMatch(password) &&
         RegExp(r'[^A-Za-z0-9]').hasMatch(password) &&
+        password != _currentController.text &&
         password == _confirmationController.text;
   }
 
@@ -45,9 +49,19 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
           padding: const EdgeInsets.all(24),
           children: [
             const Text(
-              'Este es tu primer ingreso. Debes crear una nueva contraseña.',
+              'Este es su primer ingreso. Debe crear una contraseña nueva.',
             ),
             const SizedBox(height: 24),
+            TextField(
+              controller: _currentController,
+              obscureText: true,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Contraseña actual',
+                helperText: 'Es su carnet de identidad',
+              ),
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _passwordController,
               obscureText: true,
@@ -79,6 +93,7 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
               onPressed: loading || !_validPassword
                   ? null
                   : () => context.read<SessionController>().changePassword(
+                      _currentController.text,
                       _passwordController.text,
                       _confirmationController.text,
                     ),

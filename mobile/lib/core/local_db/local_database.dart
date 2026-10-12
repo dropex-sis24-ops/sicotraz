@@ -29,8 +29,12 @@ class LocalDatabase {
           await db.execute('ALTER TABLE usuario ADD COLUMN area_id INTEGER');
         }
         if (from < 3) {
-          await db.execute(DatabaseSchema.statements[15]);
-          await db.execute(DatabaseSchema.statements[16]);
+          // Por nombre, no por posición en la lista: así añadir una tabla al
+          // esquema no rompe la actualización de los dispositivos existentes.
+          await db.execute(
+            DatabaseSchema.create(DatabaseSchema.tablaPendientes),
+          );
+          await db.execute(DatabaseSchema.create(DatabaseSchema.tablaCache));
         }
       },
     );

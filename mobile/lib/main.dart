@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/network/authenticated_api_client.dart';
 import 'core/theme/app_theme.dart';
 import 'core/sync/sync_controller.dart';
 import 'core/sync/sync_status_banner.dart';
@@ -10,14 +11,25 @@ import 'features/auth/presentation/login_screen.dart';
 import 'features/home/presentation/role_home_screen.dart';
 
 void main() {
-  final session = SessionController()..restore();
-  runApp(SicotrazApp(session: session));
+  final session = SessionController();
+  final sync = SyncController();
+
+  // Al cerrar o perder la sesión se borran la cola y la caché del dispositivo:
+  // en una tablet compartida no deben pasar al turno siguiente.
+  session.onSessionCleared = sync.clearDeviceData;
+  // Un 401 desde cualquier pantalla devuelve al login en lugar de dejar la app
+  // en un estado en el que todas las operaciones fallan.
+  AuthenticatedApiClient.onUnauthenticated = session.handleSessionExpired;
+
+  session.restore();
+  runApp(SicotrazApp(session: session, sync: sync));
 }
 
 class SicotrazApp extends StatelessWidget {
-  const SicotrazApp({super.key, this.session});
+  const SicotrazApp({super.key, this.session, this.sync});
 
   final SessionController? session;
+  final SyncController? sync;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +38,9 @@ class SicotrazApp extends StatelessWidget {
         ChangeNotifierProvider<SessionController>(
           create: (_) => session ?? SessionController(),
         ),
-        ChangeNotifierProvider<SyncController>(create: (_) => SyncController()),
+        ChangeNotifierProvider<SyncController>(
+          create: (_) => sync ?? SyncController(),
+        ),
       ],
       child: MaterialApp(
         title: 'SICOTRAZ',

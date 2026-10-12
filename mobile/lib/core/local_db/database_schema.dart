@@ -5,6 +5,19 @@ class DatabaseSchema {
 
   static const version = 3;
 
+  /// Tablas que el código usa realmente: la cola de envíos y la caché de
+  /// lecturas. El resto del espejo del esquema de Laravel se conserva para
+  /// futuras consultas sin conexión.
+  static const tablaPendientes = 'pendiente_sincronizacion';
+  static const tablaCache = 'cache_api';
+
+  /// Sentencia de creación por nombre de tabla, para no depender del orden de
+  /// la lista en las migraciones.
+  static String create(String tabla) => statements.firstWhere(
+    (statement) => statement.contains('CREATE TABLE $tabla ('),
+    orElse: () => throw ArgumentError('Tabla desconocida: $tabla'),
+  );
+
   static const statements = <String>[
     '''CREATE TABLE rol (
       id INTEGER PRIMARY KEY,

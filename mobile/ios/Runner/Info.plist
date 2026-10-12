@@ -49,6 +49,10 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>SICOTRAZ usa la cámara para fotografiar los formularios de ropería y las evidencias de baja de prendas.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SICOTRAZ accede a sus fotos para adjuntar una imagen ya tomada del formulario o de la prenda.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

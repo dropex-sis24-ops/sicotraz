@@ -9,7 +9,15 @@ class SyncStatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sync = context.watch<SyncController>();
-    final (icon, color, text) = sync.conflictCount > 0
+    // Un registro que la cola dejó de reintentar necesita intervención: antes
+    // se reintentaba en silencio cada 15 segundos sin avisar a nadie.
+    final (icon, color, text) = sync.stuckCount > 0
+        ? (
+            Icons.error_outline,
+            Colors.red.shade900,
+            '${sync.stuckCount} registro(s) no se pudieron enviar — toque para reintentar',
+          )
+        : sync.conflictCount > 0
         ? (
             Icons.warning_amber,
             Colors.orange.shade900,
@@ -39,7 +47,11 @@ class SyncStatusBanner extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: InkWell(
-          onTap: sync.pendingCount > 0 ? sync.synchronize : null,
+          onTap: sync.stuckCount > 0
+              ? sync.retryStuckRecords
+              : sync.pendingCount > 0
+              ? sync.synchronize
+              : null,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
             child: Row(
