@@ -68,6 +68,7 @@ class AuthFeatureTest extends TestCase
         Sanctum::actingAs($usuario);
 
         $this->postJson('/api/cambiar-password', [
+            'password_actual' => 'Carnet@123',
             'password_nueva' => 'Nueva@123',
             'password_nueva_confirmation' => 'Nueva@123',
         ])->assertOk()
@@ -76,6 +77,55 @@ class AuthFeatureTest extends TestCase
         $usuario->refresh();
         $this->assertFalse($usuario->debe_cambiar_password);
         $this->assertTrue(Hash::check('Nueva@123', $usuario->password_hash));
+    }
+
+    public function test_password_change_requires_the_current_password(): void
+    {
+        $usuario = $this->usuario();
+        Sanctum::actingAs($usuario);
+
+        $this->postJson('/api/cambiar-password', [
+            'password_actual' => 'Equivocada@1',
+            'password_nueva' => 'Nueva@123',
+            'password_nueva_confirmation' => 'Nueva@123',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('password_actual');
+
+        $this->assertTrue(Hash::check('Carnet@123', $usuario->fresh()->password_hash));
+    }
+
+    public function test_password_change_closes_the_sessions_opened_on_other_devices(): void
+    {
+        $usuario = $this->usuario();
+        $otroDispositivo = $usuario->createToken('tablet')->accessToken;
+        Sanctum::actingAs($usuario);
+
+        $this->postJson('/api/cambiar-password', [
+            'password_actual' => 'Carnet@123',
+            'password_nueva' => 'Nueva@123',
+            'password_nueva_confirmation' => 'Nueva@123',
+        ])->assertOk();
+
+        $this->assertDatabaseMissing('personal_access_tokens', ['id' => $otroDispositivo->getKey()]);
+    }
+
+    public function test_failed_attempts_reset_once_the_lock_expires(): void
+    {
+        $usuario = $this->usuario();
+        $usuario->forceFill([
+            'intentos_fallidos' => 5,
+            'bloqueado_hasta' => now()->subMinute(),
+        ])->save();
+
+        // Antes el contador seguía en 5 y el primer fallo volvía a bloquear.
+        $this->postJson('/api/login', [
+            'numero_item' => '123456',
+            'password' => 'Equivocada@1',
+        ])->assertUnauthorized();
+
+        $usuario->refresh();
+        $this->assertSame(1, $usuario->intentos_fallidos);
+        $this->assertNull($usuario->bloqueado_hasta);
     }
 
     public function test_initial_super_admin_is_created_with_temporary_carnet_password(): void

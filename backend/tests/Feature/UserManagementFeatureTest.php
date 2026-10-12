@@ -7,6 +7,7 @@ use App\Domain\Stock\Models\Area;
 use App\Domain\Stock\Models\TipoPrenda;
 use App\Domain\Usuarios\Models\Rol;
 use App\Domain\Usuarios\Models\Usuario;
+use Database\Seeders\RolSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
@@ -15,6 +16,27 @@ use Tests\TestCase;
 class UserManagementFeatureTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_the_role_catalogue_exposes_the_real_identifiers(): void
+    {
+        $this->seed(RolSeeder::class);
+        Sanctum::actingAs($this->usuario('Super Admin', '900100'));
+
+        // La app deducía el rol_id por la posición en una lista fija del
+        // cliente: si los identificadores no son 1..5 en ese orden, se asignaba
+        // un rol distinto al elegido.
+        $roles = $this->getJson('/api/catalogo/roles')->assertOk()->json();
+
+        $this->assertCount(5, $roles);
+        foreach ($roles as $rol) {
+            $this->assertArrayHasKey('id', $rol);
+            $this->assertArrayHasKey('nombre', $rol);
+        }
+        $this->assertSame(
+            Rol::query()->where('nombre', 'Costura')->value('id'),
+            collect($roles)->firstWhere('nombre', 'Costura')['id'],
+        );
+    }
 
     public function test_super_admin_edits_carnet_and_it_becomes_the_new_temporary_password(): void
     {

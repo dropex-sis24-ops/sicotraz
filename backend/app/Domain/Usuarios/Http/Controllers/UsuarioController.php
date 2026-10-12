@@ -18,7 +18,7 @@ class UsuarioController
             ->when($request->string('buscar')->isNotEmpty(), function ($query) use ($request): void {
                 $buscar = $request->string('buscar')->toString();
                 $query->where(fn ($q) => $q->where('nombre', 'like', "%{$buscar}%")->orWhere('numero_item', 'like', "%{$buscar}%"));
-            })->paginate($request->integer('per_page', 20));
+            })->paginate(min($request->integer('per_page', 20), 100));
 
         return response()->json($usuarios);
     }
@@ -52,6 +52,11 @@ class UsuarioController
             'area_id' => ['sometimes', 'nullable', 'exists:area,id'],
         ]);
         $this->validarAreaPersonalManual($data, $usuario);
+        $this->validarNoPerderAdministracion($request, $usuario, $data['rol_id'] ?? null);
+        // Un rol sin área no debe arrastrar el área del rol anterior.
+        if (isset($data['rol_id']) && ! $this->esPersonalManual($data['rol_id'])) {
+            $data['area_id'] = $data['area_id'] ?? null;
+        }
         $carnetCambio = isset($data['carnet_identidad'])
             && $data['carnet_identidad'] !== $usuario->carnet_identidad;
         if ($carnetCambio) {
@@ -68,8 +73,10 @@ class UsuarioController
         return response()->json($usuario->fresh()->load(['rol', 'area']));
     }
 
-    public function desactivar(Usuario $usuario): JsonResponse
+    public function desactivar(Request $request, Usuario $usuario): JsonResponse
     {
+        abort_if($request->user()->is($usuario), 422, 'No puede desactivar su propia cuenta.');
+        $this->validarNoPerderAdministracion($request, $usuario, null, desactiva: true);
         $usuario->update(['activo' => false]);
         $usuario->tokens()->delete();
 
@@ -106,6 +113,7 @@ class UsuarioController
     public function destroy(Request $request, Usuario $usuario): JsonResponse
     {
         abort_if($request->user()->is($usuario), 422, 'No puede eliminar su propia cuenta.');
+        $this->validarNoPerderAdministracion($request, $usuario, null, desactiva: true);
         abort_if($this->tieneHistorial($usuario), 422, 'El usuario tiene historial operativo y no puede eliminarse. Desactívelo para conservar la trazabilidad.');
 
         DB::transaction(function () use ($usuario): void {
@@ -120,12 +128,46 @@ class UsuarioController
     private function validarAreaPersonalManual(array $data, ?Usuario $usuario = null): void
     {
         $rolId = $data['rol_id'] ?? $usuario?->rol_id;
-        $esPersonalManual = Rol::query()->whereKey($rolId)->value('nombre') === 'Personal manual';
         $areaId = $data['area_id'] ?? $usuario?->area_id;
 
-        if ($esPersonalManual && $areaId === null) {
+        if ($this->esPersonalManual($rolId) && $areaId === null) {
             abort(422, 'El Personal manual debe tener un área asignada.');
         }
+    }
+
+    private function esPersonalManual(int|string|null $rolId): bool
+    {
+        return $rolId !== null && Rol::query()->whereKey($rolId)->value('nombre') === 'Personal manual';
+    }
+
+    /**
+     * El sistema solo se administra desde la app: si se desactiva o degrada al
+     * último Super Admin activo, nadie puede volver a crear usuarios ni
+     * desbloquear cuentas sin tocar la base de datos a mano.
+     */
+    private function validarNoPerderAdministracion(
+        Request $request,
+        Usuario $usuario,
+        int|string|null $nuevoRolId,
+        bool $desactiva = false,
+    ): void {
+        $rolSuperAdmin = Rol::query()->where('nombre', 'Super Admin')->value('id');
+        if ($rolSuperAdmin === null || $usuario->rol_id !== $rolSuperAdmin) {
+            return;
+        }
+        $pierdeElRol = $desactiva
+            || ($nuevoRolId !== null && (int) $nuevoRolId !== (int) $rolSuperAdmin);
+        if (! $pierdeElRol) {
+            return;
+        }
+        $otrosActivos = Usuario::query()
+            ->where('rol_id', $rolSuperAdmin)
+            ->where('activo', true)
+            ->whereKeyNot($usuario->id)
+            ->exists();
+
+        abort_if(! $otrosActivos, 422, 'Debe existir al menos un Super Admin activo. '
+            .'Cree otra cuenta Super Admin antes de modificar esta.');
     }
 
     private function tieneHistorial(Usuario $usuario): bool

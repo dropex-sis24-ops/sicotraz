@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Domain\Movimientos\Models\Lote;
+use App\Domain\Movimientos\Models\MovimientoLote;
 use App\Domain\Stock\Models\Area;
+use App\Domain\Stock\Models\PlantillaFormulario;
 use App\Domain\Stock\Models\StockArea;
 use App\Domain\Stock\Models\TipoPrenda;
 use App\Domain\Usuarios\Models\Rol;
@@ -23,6 +25,12 @@ class MovimientosYAlertasFeatureTest extends TestCase
         try {
             $quirofano = Area::query()->create(['nombre' => 'Quirófano']);
             $campo = TipoPrenda::query()->create(['nombre' => 'Campo Grande (C. GRANDE)']);
+            // RN15: un lote con origen 'ocr_local' exige su plantilla.
+            PlantillaFormulario::query()->create([
+                'nombre' => 'Quirófano',
+                'estructura_campos' => ['tipos_prenda' => ['Campo Grande (C. GRANDE)']],
+                'activo' => true,
+            ]);
             StockArea::query()->create([
                 'area_id' => $quirofano->id,
                 'tipo_prenda_id' => $campo->id,
@@ -111,6 +119,128 @@ class MovimientosYAlertasFeatureTest extends TestCase
             ->assertOk()
             ->assertJsonPath('estado', 'resuelta');
         $this->assertDatabaseHas('alerta', ['id' => $id, 'estado' => 'resuelta']);
+    }
+
+    public function test_a_lote_can_be_closed_even_if_its_clothes_were_written_off(): void
+    {
+        $area = Area::query()->create(['nombre' => 'Cirugía Varones']);
+        $prenda = TipoPrenda::query()->create(['nombre' => 'Sábana']);
+        StockArea::query()->create([
+            'area_id' => $area->id, 'tipo_prenda_id' => $prenda->id,
+            'cantidad_total' => 4, 'cantidad_en_area' => 4, 'cantidad_en_lavanderia' => 0,
+        ]);
+        $ropera = $this->usuario('Ropera');
+        Sanctum::actingAs($ropera);
+        // Todo el stock del área viaja en el lote: la baja solo puede salir de
+        // lo que está en lavandería.
+        $lote = $this->postJson('/api/lotes', [
+            'area_id' => $area->id,
+            'peso_kg' => 3,
+            'detalles' => [['tipo_prenda_id' => $prenda->id, 'cantidad' => 4]],
+        ])->assertCreated()->json();
+        $this->patchJson("/api/lotes/{$lote['id']}/etapa", ['etapa' => 'en_lavado'])->assertOk();
+
+        // Costura da de baja dos prendas que viajaban en ese lote.
+        Sanctum::actingAs($this->usuario('Costura'));
+        $this->postJson('/api/bajas', [
+            'area_id' => $area->id,
+            'tipo_prenda_id' => $prenda->id,
+            'cantidad' => 2,
+            'motivo' => 'Rota / rasgada',
+        ])->assertCreated();
+
+        // Antes la entrega limpia fallaba con 422 y el lote quedaba atascado
+        // en 'en_lavado' con su stock inmovilizado para siempre.
+        Sanctum::actingAs($ropera);
+        $this->postJson("/api/lotes/{$lote['id']}/entrega-limpia", [])
+            ->assertOk()
+            ->assertJsonPath('etapa', 'limpio_entregado')
+            ->assertJsonPath('prendas_dadas_de_baja.0.cantidad', 2);
+
+        $this->assertDatabaseHas('stock_area', [
+            'area_id' => $area->id,
+            'tipo_prenda_id' => $prenda->id,
+            'cantidad_total' => 2,
+            'cantidad_en_area' => 2,
+            'cantidad_en_lavanderia' => 0,
+        ]);
+    }
+
+    public function test_the_stage_cannot_be_advanced_twice_for_the_same_lote(): void
+    {
+        $area = Area::query()->create(['nombre' => 'Cirugía Varones']);
+        $prenda = TipoPrenda::query()->create(['nombre' => 'Sábana']);
+        StockArea::query()->create([
+            'area_id' => $area->id, 'tipo_prenda_id' => $prenda->id,
+            'cantidad_total' => 10, 'cantidad_en_area' => 10, 'cantidad_en_lavanderia' => 0,
+        ]);
+        Sanctum::actingAs($this->usuario('Ropera'));
+        $lote = $this->postJson('/api/lotes', [
+            'area_id' => $area->id,
+            'peso_kg' => 3,
+            'detalles' => [['tipo_prenda_id' => $prenda->id, 'cantidad' => 4]],
+        ])->assertCreated()->json();
+
+        $this->patchJson("/api/lotes/{$lote['id']}/etapa", ['etapa' => 'en_lavado'])->assertOk();
+        $this->patchJson("/api/lotes/{$lote['id']}/etapa", ['etapa' => 'en_lavado'])->assertUnprocessable();
+        $this->postJson("/api/lotes/{$lote['id']}/entrega-limpia", [])->assertOk();
+        // Un segundo toque devolvía el stock otra vez, creando prendas de la nada.
+        $this->postJson("/api/lotes/{$lote['id']}/entrega-limpia", [])->assertUnprocessable();
+
+        $this->assertDatabaseHas('stock_area', [
+            'area_id' => $area->id, 'tipo_prenda_id' => $prenda->id,
+            'cantidad_total' => 10, 'cantidad_en_area' => 10, 'cantidad_en_lavanderia' => 0,
+        ]);
+        $this->assertSame(3, MovimientoLote::query()->where('lote_id', $lote['id'])->count());
+    }
+
+    public function test_an_unknown_item_number_explains_itself_instead_of_returning_a_404(): void
+    {
+        $area = Area::query()->create(['nombre' => 'Cirugía Varones']);
+        $prenda = TipoPrenda::query()->create(['nombre' => 'Sábana']);
+        StockArea::query()->create([
+            'area_id' => $area->id, 'tipo_prenda_id' => $prenda->id,
+            'cantidad_total' => 10, 'cantidad_en_area' => 10, 'cantidad_en_lavanderia' => 0,
+        ]);
+        Sanctum::actingAs($this->usuario('Ropera'));
+
+        $this->postJson('/api/lotes', [
+            'area_id' => $area->id,
+            'numero_item_entrega' => '9999999',
+            'peso_kg' => 3,
+            'detalles' => [['tipo_prenda_id' => $prenda->id, 'cantidad' => 1]],
+        ])->assertUnprocessable()
+            ->assertJsonPath('message', 'No existe un usuario con el N° de ítem 9999999.');
+    }
+
+    public function test_an_ocr_lote_requires_its_form_template(): void
+    {
+        $area = Area::query()->create(['nombre' => 'Cirugía Varones']);
+        $prenda = TipoPrenda::query()->create(['nombre' => 'Sábana']);
+        StockArea::query()->create([
+            'area_id' => $area->id, 'tipo_prenda_id' => $prenda->id,
+            'cantidad_total' => 10, 'cantidad_en_area' => 10, 'cantidad_en_lavanderia' => 0,
+        ]);
+        Sanctum::actingAs($this->usuario('Ropera'));
+        $payload = [
+            'area_id' => $area->id,
+            'peso_kg' => 3,
+            'origen_registro' => 'ocr_local',
+            'detalles' => [['tipo_prenda_id' => $prenda->id, 'cantidad' => 2]],
+        ];
+
+        // RN15: sin la plantilla "Salas" en la base, el lote OCR se guardaba
+        // con plantilla_id en null en lugar de rechazarse.
+        $this->postJson('/api/lotes', $payload)->assertUnprocessable();
+
+        PlantillaFormulario::query()->create([
+            'nombre' => 'Salas',
+            'estructura_campos' => ['tipos_prenda' => ['Sábana']],
+            'activo' => true,
+        ]);
+        $this->postJson('/api/lotes', $payload)->assertCreated()
+            ->assertJsonPath('origen_registro', 'ocr_local');
+        $this->assertDatabaseMissing('lote', ['origen_registro' => 'ocr_local', 'plantilla_id' => null]);
     }
 
     public function test_all_authenticated_roles_can_consult_history(): void

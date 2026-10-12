@@ -14,7 +14,9 @@ use App\Domain\Usuarios\Http\Controllers\UsuarioController;
 use App\Http\Controllers\ArchivoController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/login', [AuthController::class, 'login']);
+// Sin límite, el N° de ítem (público en el hospital) se podía enumerar y
+// probar contraseñas desde fuera del bloqueo por cuenta.
+Route::middleware('throttle:10,1')->post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -22,8 +24,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/catalogo/prendas', [CatalogoController::class, 'prendas']);
     Route::get('/catalogo/areas', [CatalogoController::class, 'areas']);
     Route::get('/catalogo/plantillas', [CatalogoController::class, 'plantillas']);
-    Route::post('/archivos', [ArchivoController::class, 'store']);
+    Route::middleware('throttle:30,1')->post('/archivos', [ArchivoController::class, 'store']);
     Route::post('/sync', [SyncController::class, 'store']);
+    // Cada usuario ve solo los conflictos de sus propios registros; los roles
+    // responsables de resolverlos ven todos (filtrado en el controlador).
     Route::get('/sync/conflictos', [SyncController::class, 'index']);
 });
 
@@ -31,6 +35,7 @@ Route::middleware(['auth:sanctum', 'role:Super Admin,Encargado de Ropería y Lav
     ->patch('/sync/conflictos/{conflicto}/resolver', [SyncController::class, 'resolver']);
 
 Route::middleware(['auth:sanctum', 'role:Super Admin'])->group(function (): void {
+    Route::get('/catalogo/roles', [CatalogoController::class, 'roles']);
     Route::get('/usuarios', [UsuarioController::class, 'index']);
     Route::post('/usuarios', [UsuarioController::class, 'store']);
     Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update']);

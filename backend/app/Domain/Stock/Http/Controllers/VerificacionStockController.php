@@ -12,9 +12,9 @@ class VerificacionStockController
     {
         $data = $request->validate([
             'area_id' => ['nullable', 'exists:area,id'],
-            'observacion' => ['nullable', 'string'],
+            'observacion' => ['nullable', 'string', 'max:1000'],
             'detalles' => ['required', 'array', 'min:1'],
-            'detalles.*.tipo_prenda_id' => ['required', 'exists:tipo_prenda,id'],
+            'detalles.*.tipo_prenda_id' => ['required', 'distinct', 'exists:tipo_prenda,id'],
             'detalles.*.cantidad_contada' => ['required', 'integer', 'min:0', 'max:999'],
             'uuid_local' => ['nullable', 'uuid'],
         ]);
@@ -29,9 +29,20 @@ class VerificacionStockController
         $data['area_id'] = $areaId;
         $resultado = 'sin_novedad';
         $verificacion = DB::transaction(function () use ($request, $data, &$resultado) {
-            $stocks = DB::table('stock_area')->where('area_id', $data['area_id'])->pluck('cantidad_en_area', 'tipo_prenda_id');
-            foreach ($data['detalles'] as $detalle) {
-                if (($stocks[$detalle['tipo_prenda_id']] ?? 0) !== $detalle['cantidad_contada']) {
+            $stocks = DB::table('stock_area')->where('area_id', $data['area_id'])
+                ->pluck('cantidad_en_area', 'tipo_prenda_id')
+                // Según el driver, pluck devuelve cadenas; con la comparación
+                // estricta anterior toda verificación salía como irregularidad.
+                ->map(fn ($cantidad) => (int) $cantidad);
+            $contadas = collect($data['detalles'])
+                ->mapWithKeys(fn (array $detalle) => [
+                    (int) $detalle['tipo_prenda_id'] => (int) $detalle['cantidad_contada'],
+                ]);
+            // Una prenda con stock que no se contó también es una diferencia:
+            // antes se podía ocultar un faltante simplemente omitiéndola.
+            $prendas = $stocks->keys()->merge($contadas->keys())->unique();
+            foreach ($prendas as $tipoPrendaId) {
+                if (($stocks[$tipoPrendaId] ?? 0) !== ($contadas[$tipoPrendaId] ?? 0)) {
                     $resultado = 'irregularidad_reportada';
                 }
             }
@@ -44,10 +55,11 @@ class VerificacionStockController
                 'sincronizado' => true, 'fecha_ultima_modificacion' => now(), 'created_at' => now(), 'updated_at' => now(),
                 'uuid_local' => $data['uuid_local'] ?? null,
             ]);
-            foreach ($data['detalles'] as $detalle) {
+            foreach ($prendas as $tipoPrendaId) {
                 DB::table('detalle_verificacion_stock')->insert([
-                    'verificacion_stock_id' => $id, 'tipo_prenda_id' => $detalle['tipo_prenda_id'],
-                    'cantidad_esperada' => $stocks[$detalle['tipo_prenda_id']] ?? 0, 'cantidad_contada' => $detalle['cantidad_contada'],
+                    'verificacion_stock_id' => $id, 'tipo_prenda_id' => $tipoPrendaId,
+                    'cantidad_esperada' => $stocks[$tipoPrendaId] ?? 0,
+                    'cantidad_contada' => $contadas[$tipoPrendaId] ?? 0,
                     'created_at' => now(), 'updated_at' => now(),
                 ]);
             }

@@ -3,6 +3,7 @@
 namespace App\Domain\Alertas\Http\Controllers;
 
 use App\Domain\Alertas\Models\Alerta;
+use App\Http\Controllers\ArchivoController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,8 +15,8 @@ class AlertaController
         $data = $request->validate([
             'area_id' => ['nullable', 'exists:area,id'],
             'tipo_prenda_id' => ['required', 'exists:tipo_prenda,id'],
-            'descripcion' => ['required', 'string', 'min:3'],
-            'foto_evidencia_url' => ['nullable', 'string', 'max:2048'],
+            'descripcion' => ['required', 'string', 'min:3', 'max:1000'],
+            'foto_evidencia_url' => ArchivoController::reglasEvidencia(),
             'uuid_local' => ['nullable', 'uuid'],
         ]);
         $usuario = $request->user();
@@ -31,12 +32,12 @@ class AlertaController
             'area_id' => $areaId,
             'tipo_prenda_id' => $data['tipo_prenda_id'],
             'usuario_reporta_id' => $usuario->id,
-            'fecha_hora_reporte' => now('America/La_Paz'),
+            'fecha_hora_reporte' => now(),
             'descripcion' => $data['descripcion'],
             'foto_evidencia_url' => $data['foto_evidencia_url'] ?? null,
             'estado' => 'pendiente',
             'sincronizado' => true,
-            'fecha_ultima_modificacion' => now('America/La_Paz'),
+            'fecha_ultima_modificacion' => now(),
             'uuid_local' => $data['uuid_local'] ?? null,
         ]);
 
@@ -45,13 +46,16 @@ class AlertaController
 
     public function index(Request $request): JsonResponse
     {
-        $data = $request->validate(['estado' => ['nullable', 'in:pendiente,resuelta']]);
+        $data = $request->validate([
+            'estado' => ['nullable', 'in:pendiente,resuelta'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
 
         return response()->json(Alerta::query()
             ->with(['area', 'tipoPrenda', 'reporta', 'resuelve'])
             ->when($data['estado'] ?? null, fn ($query, $estado) => $query->where('estado', $estado))
             ->latest('fecha_hora_reporte')
-            ->paginate($request->integer('per_page', 20)));
+            ->paginate(min($request->integer('per_page', 20), 100)));
     }
 
     public function resolver(Request $request, Alerta $alerta): JsonResponse
@@ -59,13 +63,13 @@ class AlertaController
         if ($alerta->estado === 'resuelta') {
             abort(422, 'La alerta ya fue resuelta.');
         }
-        $data = $request->validate(['nota_resolucion' => ['nullable', 'string']]);
+        $data = $request->validate(['nota_resolucion' => ['nullable', 'string', 'max:1000']]);
         $alerta->update([
             'estado' => 'resuelta',
             'usuario_resuelve_id' => $request->user()->id,
-            'fecha_resolucion' => now('America/La_Paz'),
+            'fecha_resolucion' => now(),
             'nota_resolucion' => $data['nota_resolucion'] ?? null,
-            'fecha_ultima_modificacion' => now('America/La_Paz'),
+            'fecha_ultima_modificacion' => now(),
         ]);
 
         return response()->json($this->cargar($alerta));

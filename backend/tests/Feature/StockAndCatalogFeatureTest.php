@@ -34,13 +34,63 @@ class StockAndCatalogFeatureTest extends TestCase
 
         $plantilla = PlantillaFormulario::query()->create([
             'nombre' => 'Salas',
-            'estructura_campos' => ['campos' => []],
+            'estructura_campos' => ['tipos_prenda' => []],
             'activo' => true,
         ]);
         $this->patchJson("/api/catalogo/plantillas/{$plantilla->id}", [
-            'estructura_campos' => ['campos' => ['prenda', 'cantidad']],
+            'estructura_campos' => ['tipos_prenda' => ['Sábana de prueba']],
         ])->assertOk()
-            ->assertJsonPath('estructura_campos.campos.0', 'prenda');
+            ->assertJsonPath('estructura_campos.tipos_prenda.0', 'Sábana de prueba');
+
+        // Una estructura sin 'tipos_prenda' dejaba el formulario de ingreso
+        // vacío sin ningún aviso, y una prenda inexistente hacía lo mismo.
+        $this->patchJson("/api/catalogo/plantillas/{$plantilla->id}", [
+            'estructura_campos' => ['campos' => ['prenda', 'cantidad']],
+        ])->assertUnprocessable();
+        $this->patchJson("/api/catalogo/plantillas/{$plantilla->id}", [
+            'estructura_campos' => ['tipos_prenda' => ['Prenda que no existe']],
+        ])->assertUnprocessable();
+    }
+
+    public function test_renaming_a_clothing_type_keeps_it_in_the_area_template(): void
+    {
+        $this->seed(CatalogoInicialSeeder::class);
+        Sanctum::actingAs($this->usuario('Super Admin'));
+        $area = Area::query()->where('nombre', '!=', 'Quirófano')->firstOrFail();
+        $prenda = TipoPrenda::query()->where('nombre', collect(
+            PlantillaFormulario::query()->where('nombre', 'Salas')->value('estructura_campos')['tipos_prenda']
+        )->first())->firstOrFail();
+
+        $this->patchJson("/api/catalogo/prendas/{$prenda->id}", ['nombre' => 'Sábana renombrada'])->assertOk();
+
+        // Las plantillas guardan nombres: sin propagar el cambio, la prenda
+        // desaparecía del formulario de ingreso del área.
+        $this->getJson("/api/lotes/formulario?area_id={$area->id}");
+        $nombres = PlantillaFormulario::query()->where('nombre', 'Salas')->value('estructura_campos')['tipos_prenda'];
+        $this->assertContains('Sábana renombrada', $nombres);
+        $this->getJson("/api/catalogo/prendas?area_id={$area->id}")
+            ->assertOk()
+            ->assertJsonFragment(['nombre' => 'Sábana renombrada']);
+    }
+
+    public function test_an_alias_cannot_be_shared_by_two_areas(): void
+    {
+        Sanctum::actingAs($this->usuario('Super Admin'));
+        $primera = $this->postJson('/api/catalogo/areas', ['nombre' => 'Cirugía Varones'])->json();
+        $segunda = $this->postJson('/api/catalogo/areas', ['nombre' => 'Cirugía Mujeres'])->json();
+
+        $this->postJson("/api/catalogo/areas/{$primera['id']}/alias", ['alias' => 'CIR-V'])->assertCreated();
+        // El OCR resuelve el área por alias: repetirlo la vuelve ambigua.
+        $this->postJson("/api/catalogo/areas/{$segunda['id']}/alias", ['alias' => 'cir v'])->assertUnprocessable();
+    }
+
+    public function test_quirofano_cannot_be_renamed_because_its_rules_depend_on_the_name(): void
+    {
+        Sanctum::actingAs($this->usuario('Super Admin'));
+        $area = Area::query()->create(['nombre' => 'Quirófano']);
+
+        $this->patchJson("/api/catalogo/areas/{$area->id}", ['nombre' => 'Quirofano 1'])
+            ->assertUnprocessable();
     }
 
     public function test_clothing_catalog_is_filtered_by_the_area_template(): void
@@ -112,6 +162,48 @@ class StockAndCatalogFeatureTest extends TestCase
             'detalles' => [['tipo_prenda_id' => $prenda->id, 'cantidad_contada' => 9]],
         ])->assertCreated()
             ->assertJsonPath('resultado', 'irregularidad_reportada');
+    }
+
+    public function test_a_deactivated_item_keeps_its_history_but_cannot_enter_a_new_lote(): void
+    {
+        Sanctum::actingAs($this->usuario('Super Admin'));
+        $area = Area::query()->create(['nombre' => 'Cirugía Varones']);
+        $prenda = TipoPrenda::query()->create(['nombre' => 'Sábana']);
+        StockArea::query()->create([
+            'area_id' => $area->id, 'tipo_prenda_id' => $prenda->id,
+            'cantidad_total' => 10, 'cantidad_en_area' => 10, 'cantidad_en_lavanderia' => 0,
+        ]);
+        PlantillaFormulario::query()->create([
+            'nombre' => 'Salas',
+            'estructura_campos' => ['tipos_prenda' => ['Sábana']],
+            'activo' => true,
+        ]);
+
+        // Pantalla 5: desactivar un ítem con historial está aprobado.
+        $this->patchJson("/api/catalogo/prendas/{$prenda->id}", ['activo' => false])
+            ->assertOk()
+            ->assertJsonPath('activo', false);
+
+        // Lo que debe bloquearse es usarlo en un lote nuevo.
+        Sanctum::actingAs($this->usuario('Ropera'));
+        $this->postJson('/api/lotes', [
+            'area_id' => $area->id,
+            'peso_kg' => 2,
+            'detalles' => [['tipo_prenda_id' => $prenda->id, 'cantidad' => 1]],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('detalles.0.tipo_prenda_id');
+
+        // Y lo mismo con un área desactivada.
+        Sanctum::actingAs($this->usuario('Super Admin'));
+        $this->patchJson("/api/catalogo/prendas/{$prenda->id}", ['activo' => true])->assertOk();
+        $this->patchJson("/api/catalogo/areas/{$area->id}", ['activo' => false])->assertOk();
+        Sanctum::actingAs($this->usuario('Ropera'));
+        $this->postJson('/api/lotes', [
+            'area_id' => $area->id,
+            'peso_kg' => 2,
+            'detalles' => [['tipo_prenda_id' => $prenda->id, 'cantidad' => 1]],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('area_id');
     }
 
     public function test_pilot_stock_seeder_loads_the_confirmed_pilot_records(): void

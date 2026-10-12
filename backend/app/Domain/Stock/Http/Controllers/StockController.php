@@ -7,6 +7,7 @@ use App\Domain\Stock\Models\StockArea;
 use App\Domain\Stock\Models\TipoPrenda;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class StockController
@@ -48,20 +49,36 @@ class StockController
     public function verificacion(Request $request): JsonResponse
     {
         $data = $request->validate(['area_id' => ['nullable', 'exists:area,id']]);
-        $areaId = $data['area_id'] ?? $request->user()->area_id;
+        $usuario = $request->user();
+        $areaId = $data['area_id'] ?? $usuario->area_id;
         if ($areaId === null) {
-            abort(422, 'El usuario no tiene un área asignada.');
+            abort(422, 'Indique el área a consultar; su cuenta no tiene un área asignada.');
+        }
+        // Un usuario con área asignada no puede consultar el stock de otra.
+        if ($usuario->area_id !== null && (int) $areaId !== $usuario->area_id) {
+            abort(403, 'Solo puede consultar el stock de su área asignada.');
         }
 
-        return response()->json(StockArea::query()
-            ->with('tipoPrenda:id,nombre')
-            ->where('area_id', $areaId)
-            ->orderBy('tipo_prenda_id')
-            ->get());
+        return response()->json($this->stockDelArea((int) $areaId));
     }
 
     public function porArea(Request $request): JsonResponse
     {
-        return $this->verificacion($request);
+        $data = $request->validate(['area_id' => ['nullable', 'exists:area,id']]);
+        $areaId = $data['area_id'] ?? $request->user()->area_id;
+        if ($areaId === null) {
+            abort(422, 'Indique el área a consultar.');
+        }
+
+        return response()->json($this->stockDelArea((int) $areaId));
+    }
+
+    private function stockDelArea(int $areaId): Collection
+    {
+        return StockArea::query()
+            ->with('tipoPrenda:id,nombre')
+            ->where('area_id', $areaId)
+            ->orderBy('tipo_prenda_id')
+            ->get();
     }
 }

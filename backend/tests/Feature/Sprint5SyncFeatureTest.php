@@ -123,6 +123,113 @@ class Sprint5SyncFeatureTest extends TestCase
         ]);
     }
 
+    public function test_a_record_the_role_cannot_sync_is_rejected_without_losing_the_rest(): void
+    {
+        $area = Area::query()->create(['nombre' => 'Cirugía Varones']);
+        $prenda = TipoPrenda::query()->create(['nombre' => 'Sábana']);
+        Sanctum::actingAs($this->usuario('Personal manual', $area->id));
+
+        $response = $this->postJson('/api/sync', ['registros' => [
+            // Personal manual no puede sincronizar bajas: antes este registro
+            // abortaba el lote completo con un 403 y la alerta se perdía.
+            [
+                'tipo' => 'baja',
+                'uuid_local' => '1b9d1a3e-0d64-45a7-9c3f-2e1c7a9d4f10',
+                'fecha_ultima_modificacion' => '2026-08-30T15:00:00Z',
+                'datos' => ['area_id' => $area->id, 'tipo_prenda_id' => $prenda->id, 'cantidad' => 1, 'motivo' => 'Perdida'],
+            ],
+            [
+                'tipo' => 'alerta',
+                'uuid_local' => '2c0e2b4f-1e75-46b8-8d40-3f2d8bae5021',
+                'fecha_ultima_modificacion' => '2026-08-30T15:00:00Z',
+                'datos' => ['area_id' => $area->id, 'tipo_prenda_id' => $prenda->id, 'descripcion' => 'Faltan dos unidades'],
+            ],
+        ]]);
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'guardados')
+            ->assertJsonCount(1, 'rechazados')
+            ->assertJsonPath('rechazados.0.uuid_local', '1b9d1a3e-0d64-45a7-9c3f-2e1c7a9d4f10');
+        $this->assertDatabaseCount('alerta', 1);
+        $this->assertDatabaseCount('baja', 0);
+    }
+
+    public function test_keeping_the_server_version_stops_the_conflict_from_coming_back(): void
+    {
+        $area = Area::query()->create(['nombre' => 'Cirugía Varones']);
+        $prenda = TipoPrenda::query()->create(['nombre' => 'Sábana']);
+        $manual = $this->usuario('Personal manual', $area->id);
+        Sanctum::actingAs($manual);
+        $uuid = 'af1d5c2b-7e38-4a91-93c5-6d0b2e4f7a83';
+
+        $this->postJson('/api/sync', $this->batch($uuid, $area->id, $prenda->id, 'Versión servidor'))->assertOk();
+        $cambiado = $this->batch($uuid, $area->id, $prenda->id, 'Versión dispositivo');
+        $conflictId = $this->postJson('/api/sync', $cambiado)->assertOk()->json('conflictos.0.id');
+
+        Sanctum::actingAs($this->usuario('Super Admin'));
+        $this->patchJson("/api/sync/conflictos/$conflictId/resolver", [
+            'version_elegida' => 'servidor',
+        ])->assertOk();
+
+        // El dispositivo reenvía su versión: debe reconocerse como duplicada en
+        // lugar de abrir otro conflicto idéntico en cada sincronización.
+        Sanctum::actingAs($manual);
+        $this->postJson('/api/sync', $cambiado)->assertOk()
+            ->assertJsonPath('guardados.0.duplicado', true)
+            ->assertJsonCount(0, 'conflictos');
+        $this->assertDatabaseCount('conflicto_sincronizacion', 1);
+    }
+
+    public function test_reordering_the_details_is_not_treated_as_a_change(): void
+    {
+        $area = Area::query()->create(['nombre' => 'Cirugía Varones']);
+        $sabana = TipoPrenda::query()->create(['nombre' => 'Sábana']);
+        $toalla = TipoPrenda::query()->create(['nombre' => 'Toalla']);
+        StockArea::query()->create([
+            'area_id' => $area->id, 'tipo_prenda_id' => $sabana->id,
+            'cantidad_total' => 20, 'cantidad_en_area' => 20, 'cantidad_en_lavanderia' => 0,
+        ]);
+        StockArea::query()->create([
+            'area_id' => $area->id, 'tipo_prenda_id' => $toalla->id,
+            'cantidad_total' => 20, 'cantidad_en_area' => 20, 'cantidad_en_lavanderia' => 0,
+        ]);
+        Sanctum::actingAs($this->usuario('Ropera'));
+        $uuid = 'c3b8f0d1-5a26-4f7e-8b19-0e5d7c2a9f64';
+
+        $lote = fn (array $detalles) => ['registros' => [[
+            'tipo' => 'lote',
+            'uuid_local' => $uuid,
+            'fecha_ultima_modificacion' => '2026-08-30T16:00:00Z',
+            'datos' => ['area_id' => $area->id, 'peso_kg' => 4.5, 'detalles' => $detalles],
+        ]]];
+        $sabanaPrimero = [
+            ['tipo_prenda_id' => $sabana->id, 'cantidad' => 3],
+            ['tipo_prenda_id' => $toalla->id, 'cantidad' => 2],
+        ];
+
+        $this->postJson('/api/sync', $lote($sabanaPrimero))->assertOk();
+        $this->postJson('/api/sync', $lote(array_reverse($sabanaPrimero)))->assertOk()
+            ->assertJsonPath('guardados.0.duplicado', true)
+            ->assertJsonCount(0, 'conflictos');
+    }
+
+    public function test_a_user_only_sees_the_conflicts_of_their_own_records(): void
+    {
+        $area = Area::query()->create(['nombre' => 'Cirugía Varones']);
+        $prenda = TipoPrenda::query()->create(['nombre' => 'Sábana']);
+        $uuid = 'e5f7a9c1-2b48-4d60-9e73-1a8c5b3d7f92';
+        Sanctum::actingAs($this->usuario('Personal manual', $area->id));
+        $this->postJson('/api/sync', $this->batch($uuid, $area->id, $prenda->id, 'Versión servidor'))->assertOk();
+        $this->postJson('/api/sync', $this->batch($uuid, $area->id, $prenda->id, 'Versión dispositivo'))->assertOk();
+
+        // Otro usuario del mismo rol no debe ver el contenido del conflicto ajeno.
+        Sanctum::actingAs($this->usuario('Personal manual', $area->id));
+        $this->getJson('/api/sync/conflictos')->assertOk()->assertJsonCount(0);
+
+        Sanctum::actingAs($this->usuario('Encargado de Ropería y Lavandería'));
+        $this->getJson('/api/sync/conflictos')->assertOk()->assertJsonCount(1);
+    }
+
     private function batch(string $uuid, int $areaId, int $prendaId, string $description): array
     {
         return ['registros' => [[

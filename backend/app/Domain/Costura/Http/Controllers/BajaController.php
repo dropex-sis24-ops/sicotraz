@@ -4,6 +4,7 @@ namespace App\Domain\Costura\Http\Controllers;
 
 use App\Domain\Costura\Models\Baja;
 use App\Domain\Stock\Models\StockArea;
+use App\Http\Controllers\ArchivoController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +31,7 @@ class BajaController
             'cantidad' => ['required', 'integer', 'min:1', 'max:999'],
             'motivo' => ['required', Rule::in(self::MOTIVOS)],
             'descripcion' => ['nullable', 'required_if:motivo,Otro', 'string', 'max:1000'],
-            'foto_evidencia_url' => ['nullable', 'string', 'max:2048'],
+            'foto_evidencia_url' => ArchivoController::reglasEvidencia(),
             'uuid_local' => ['nullable', 'uuid'],
         ]);
 
@@ -54,7 +55,7 @@ class BajaController
             $stock->cantidad_total -= $data['cantidad'];
             $stock->save();
 
-            $ahora = now('America/La_Paz');
+            $ahora = now();
 
             return Baja::query()->create([
                 ...$data,
@@ -71,7 +72,10 @@ class BajaController
 
     public function index(Request $request): JsonResponse
     {
-        $data = $request->validate(['usuario_id' => ['nullable', 'exists:usuario,id']]);
+        $data = $request->validate([
+            'usuario_id' => ['nullable', 'exists:usuario,id'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
         $usuario = $request->user();
         $esCostura = $usuario->rol?->nombre === 'Costura';
 
@@ -80,7 +84,7 @@ class BajaController
             ->when($esCostura, fn ($query) => $query->where('usuario_costura_id', $usuario->id))
             ->when(! $esCostura && isset($data['usuario_id']), fn ($query) => $query->where('usuario_costura_id', $data['usuario_id']))
             ->latest('fecha_hora')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate(min($request->integer('per_page', 20), 100));
 
         return response()->json($bajas);
     }

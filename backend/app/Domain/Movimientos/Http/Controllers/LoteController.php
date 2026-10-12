@@ -13,9 +13,13 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class LoteController
 {
+    /** @var array<int, array{tipo_prenda_id: int, cantidad: int}> */
+    private array $avisoBajas = [];
+
     // RF16–RF20 — ingreso manual, etapas, entrega limpia e historial.
     public function formulario(Request $request): JsonResponse
     {
@@ -41,9 +45,15 @@ class LoteController
 
         $lote = DB::transaction(function () use ($data, $usuarioEntrega, $usuario) {
             $area = Area::query()->findOrFail($data['area_id']);
-            $ahora = now('America/La_Paz');
+            $ahora = now();
             $automatico = $this->esQuirofano($area) && $this->enHorarioQuirofano($ahora);
             $plantilla = $this->plantillaParaArea($area);
+            abort_if(
+                ($data['origen_registro'] ?? 'manual') === 'ocr_local' && $plantilla === null,
+                422,
+                'No existe la plantilla de formulario del área. Un lote digitalizado por OCR '
+                .'requiere su plantilla (RN15); créela antes de registrar.',
+            );
             $this->moverHaciaLavanderia($area->id, $data['detalles']);
 
             $lote = Lote::query()->create([
@@ -87,11 +97,18 @@ class LoteController
             'peso_kg' => ['sometimes', 'numeric', 'min:0', 'max:999.99'],
             'nombre_quien_trae' => ['sometimes', 'nullable', 'string', 'max:255'],
             'detalles' => ['sometimes', 'array', 'min:1'],
-            'detalles.*.tipo_prenda_id' => ['required_with:detalles', 'distinct', 'exists:tipo_prenda,id'],
+            'detalles.*.tipo_prenda_id' => [
+                'required_with:detalles', 'distinct',
+                Rule::exists('tipo_prenda', 'id')->where('activo', true),
+            ],
             'detalles.*.cantidad' => ['required_with:detalles', 'integer', 'min:1', 'max:999'],
         ]);
 
         DB::transaction(function () use ($data, $lote) {
+            $lote = Lote::query()->whereKey($lote->id)->lockForUpdate()->firstOrFail();
+            if ($lote->etapa === 'limpio_entregado') {
+                abort(422, 'No se puede corregir un lote ya entregado.');
+            }
             if (isset($data['detalles'])) {
                 $actuales = $lote->detalles()->get()->map(fn (DetalleLote $d) => [
                     'tipo_prenda_id' => $d->tipo_prenda_id, 'cantidad' => $d->cantidad,
@@ -102,7 +119,7 @@ class LoteController
                 $this->guardarDetalles($lote, $data['detalles']);
             }
             $lote->fill(collect($data)->except('detalles')->all());
-            $lote->fecha_ultima_modificacion = now('America/La_Paz');
+            $lote->fecha_ultima_modificacion = now();
             $lote->save();
         });
 
@@ -112,10 +129,16 @@ class LoteController
     public function avanzarEtapa(Request $request, Lote $lote): JsonResponse
     {
         $data = $request->validate(['etapa' => ['required', 'in:en_lavado']]);
-        if ($lote->etapa !== 'sucio_recibido') {
-            abort(422, 'El lote no puede avanzar a esa etapa.');
-        }
-        $this->cambiarEtapa($lote, $data['etapa'], $request->user()->id);
+
+        DB::transaction(function () use ($lote, $data, $request): void {
+            // Se relee con bloqueo: sin esto, dos toques seguidos registraban
+            // el movimiento dos veces.
+            $actual = Lote::query()->whereKey($lote->id)->lockForUpdate()->firstOrFail();
+            if ($actual->etapa !== 'sucio_recibido') {
+                abort(422, 'El lote no puede avanzar a esa etapa.');
+            }
+            $this->cambiarEtapa($actual, $data['etapa'], $request->user()->id);
+        });
 
         return response()->json($this->cargar($lote->fresh()));
     }
@@ -128,19 +151,31 @@ class LoteController
         }
         $recibe = $this->usuarioPorItem($data['numero_item_recibe'] ?? null);
         DB::transaction(function () use ($lote, $recibe, $request) {
-            $detalles = $lote->detalles()->get()->map(fn (DetalleLote $d) => [
+            $actual = Lote::query()->whereKey($lote->id)->lockForUpdate()->firstOrFail();
+            if ($actual->etapa !== 'en_lavado') {
+                abort(422, 'La entrega limpia requiere que el lote esté en lavado.');
+            }
+            $detalles = $actual->detalles()->get()->map(fn (DetalleLote $d) => [
                 'tipo_prenda_id' => $d->tipo_prenda_id, 'cantidad' => $d->cantidad,
             ])->all();
-            $this->devolverAlArea($lote->area_id, $detalles, 'cantidad_en_lavanderia');
-            $lote->update([
+            $noDevueltas = $this->devolverAlArea($actual->area_id, $detalles, 'cantidad_en_lavanderia', tolerarBajas: true);
+            $actual->update([
                 'usuario_recibe_id' => $recibe?->id,
                 'etapa' => 'limpio_entregado',
-                'fecha_ultima_modificacion' => now('America/La_Paz'),
+                'fecha_ultima_modificacion' => now(),
             ]);
-            $this->movimiento($lote, 'limpio_entregado', $request->user()->id, now('America/La_Paz'));
+            $this->movimiento($actual, 'limpio_entregado', $request->user()->id, now());
+            $this->avisoBajas = $noDevueltas;
         });
 
-        return response()->json($this->cargar($lote->fresh()));
+        $respuesta = $this->cargar($lote->fresh())->toArray();
+        if ($this->avisoBajas !== []) {
+            $respuesta['aviso'] = 'Algunas prendas del lote se dieron de baja mientras estaba en lavandería '
+                .'y no se devolvieron al área.';
+            $respuesta['prendas_dadas_de_baja'] = $this->avisoBajas;
+        }
+
+        return response()->json($respuesta);
     }
 
     public function historial(Request $request): JsonResponse
@@ -149,15 +184,19 @@ class LoteController
             'trabajador_id' => ['nullable', 'exists:usuario,id'],
             'area_id' => ['nullable', 'exists:area,id'],
             'desde' => ['nullable', 'date'],
-            'hasta' => ['nullable', 'date'],
+            'hasta' => ['nullable', 'date', 'after_or_equal:desde'],
+            'etapa' => ['nullable', 'in:sucio_recibido,en_lavado,limpio_entregado'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
+        // RF20: el historial es consultable por todos los roles autenticados.
         $lotes = Lote::query()->with(['area', 'detalles.tipoPrenda', 'registra', 'movimientos.usuario'])
             ->when($data['trabajador_id'] ?? null, fn ($q, $id) => $q->where('usuario_registra_id', $id))
             ->when($data['area_id'] ?? null, fn ($q, $id) => $q->where('area_id', $id))
+            ->when($data['etapa'] ?? null, fn ($q, $etapa) => $q->where('etapa', $etapa))
             ->when($data['desde'] ?? null, fn ($q, $fecha) => $q->whereDate('fecha_hora', '>=', $fecha))
             ->when($data['hasta'] ?? null, fn ($q, $fecha) => $q->whereDate('fecha_hora', '<=', $fecha))
             ->latest('fecha_hora')
-            ->paginate($request->integer('per_page', 20));
+            ->paginate(min($request->integer('per_page', 20), 100));
 
         return response()->json($lotes);
     }
@@ -165,13 +204,16 @@ class LoteController
     private function validarLote(Request $request): array
     {
         return $request->validate([
-            'area_id' => ['required', 'exists:area,id'],
+            'area_id' => ['required', Rule::exists('area', 'id')->where('activo', true)],
             'numero_item_entrega' => ['nullable', 'regex:/^[0-9]{1,10}$/'],
             'nombre_quien_trae' => ['nullable', 'string', 'max:255'],
             'origen_registro' => ['nullable', 'in:manual,ocr_local'],
             'peso_kg' => ['required', 'numeric', 'min:0.01', 'max:999.99'],
             'detalles' => ['required', 'array', 'min:1'],
-            'detalles.*.tipo_prenda_id' => ['required', 'distinct', 'exists:tipo_prenda,id'],
+            'detalles.*.tipo_prenda_id' => [
+                'required', 'distinct',
+                Rule::exists('tipo_prenda', 'id')->where('activo', true),
+            ],
             'detalles.*.cantidad' => ['required', 'integer', 'min:1', 'max:999'],
             'uuid_local' => ['nullable', 'uuid'],
         ]);
@@ -192,19 +234,40 @@ class LoteController
         }
     }
 
-    private function devolverAlArea(int $areaId, array $detalles, string $origen): void
+    /**
+     * @param  array<int, array{tipo_prenda_id: int, cantidad: int}>  $detalles
+     * @return array<int, array{tipo_prenda_id: int, cantidad: int}> prendas del
+     *                                                               lote que ya no estaban en lavandería (dadas de baja entre medias)
+     */
+    private function devolverAlArea(int $areaId, array $detalles, string $origen, bool $tolerarBajas = false): array
     {
+        $noDevueltas = [];
         foreach ($detalles as $detalle) {
             $stock = StockArea::query()->lockForUpdate()->where([
                 'area_id' => $areaId, 'tipo_prenda_id' => $detalle['tipo_prenda_id'],
             ])->firstOrFail();
             if ($stock->{$origen} < $detalle['cantidad']) {
-                abort(422, 'El stock del lote ya no permite esta operación.');
+                // Una baja registrada mientras el lote estaba en lavandería ya
+                // descontó esas prendas: bloquear la entrega dejaría el lote
+                // atascado sin forma de cerrarlo.
+                abort_unless($tolerarBajas, 422, 'El stock del lote ya no permite esta operación.');
+                $devolver = max(0, (int) $stock->{$origen});
+                $noDevueltas[] = [
+                    'tipo_prenda_id' => $detalle['tipo_prenda_id'],
+                    'cantidad' => $detalle['cantidad'] - $devolver,
+                ];
+            } else {
+                $devolver = $detalle['cantidad'];
             }
-            $stock->{$origen} -= $detalle['cantidad'];
-            $stock->cantidad_en_area += $detalle['cantidad'];
+            if ($devolver === 0) {
+                continue;
+            }
+            $stock->{$origen} -= $devolver;
+            $stock->cantidad_en_area += $devolver;
             $stock->save();
         }
+
+        return $noDevueltas;
     }
 
     private function guardarDetalles(Lote $lote, array $detalles): void
@@ -221,7 +284,7 @@ class LoteController
 
     private function cambiarEtapa(Lote $lote, string $etapa, int $usuarioId): void
     {
-        $fecha = now('America/La_Paz');
+        $fecha = now();
         $lote->update(['etapa' => $etapa, 'fecha_ultima_modificacion' => $fecha]);
         $this->movimiento($lote, $etapa, $usuarioId, $fecha);
     }
@@ -232,7 +295,7 @@ class LoteController
         if (in_array($rol, ['Super Admin', 'Encargado de Ropería y Lavandería'], true)) {
             return;
         }
-        if ($rol === 'Ropera' && $this->esQuirofano($lote->area) && $lote->fecha_hora->greaterThan(now('America/La_Paz')->subHour())) {
+        if ($rol === 'Ropera' && $this->esQuirofano($lote->area) && $lote->fecha_hora->greaterThan(now()->subHour())) {
             return;
         }
         abort(403, 'No tiene permiso para corregir este lote.');
@@ -250,9 +313,9 @@ class LoteController
 
     private function enHorarioQuirofano(Carbon $fecha): bool
     {
-        $hora = $fecha->format('H:i');
+        $minutos = $fecha->hour * 60 + $fecha->minute;
 
-        return $hora >= '06:30' && $hora <= '16:30';
+        return $minutos >= (6 * 60 + 30) && $minutos <= (16 * 60 + 30);
     }
 
     private function usuarioPorItem(?string $numeroItem): ?Usuario
@@ -261,7 +324,11 @@ class LoteController
             return null;
         }
 
-        return Usuario::query()->where('numero_item', $numeroItem)->firstOrFail();
+        $usuario = Usuario::query()->where('numero_item', $numeroItem)->first();
+        abort_if($usuario === null, 422, "No existe un usuario con el N° de ítem {$numeroItem}.");
+        abort_if(! $usuario->activo, 422, "La cuenta con N° de ítem {$numeroItem} está desactivada.");
+
+        return $usuario;
     }
 
     private function cargar(Lote $lote): Lote

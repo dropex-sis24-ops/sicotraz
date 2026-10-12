@@ -16,7 +16,7 @@ class ReporteController
     // RF26 y RF45 — siete indicadores reales y control agregado por área.
     public function dashboard(): JsonResponse
     {
-        $ahora = now('America/La_Paz');
+        $ahora = now();
         $inicioMes = $ahora->copy()->startOfMonth();
         $movimientosSemana = $this->movimientosLavado($ahora->copy()->startOfWeek(), $ahora);
         $movimientosMes = $this->movimientosLavado($inicioMes, $ahora);
@@ -68,8 +68,8 @@ class ReporteController
             'hasta' => ['nullable', 'date', 'after_or_equal:desde'],
             'periodo' => ['nullable', 'in:diario,mensual'],
         ]);
-        $desde = isset($data['desde']) ? Carbon::parse($data['desde'], 'America/La_Paz')->startOfDay() : now('America/La_Paz')->startOfMonth();
-        $hasta = isset($data['hasta']) ? Carbon::parse($data['hasta'], 'America/La_Paz')->endOfDay() : now('America/La_Paz')->endOfDay();
+        $desde = isset($data['desde']) ? Carbon::parse($data['desde'])->startOfDay() : now()->startOfMonth();
+        $hasta = isset($data['hasta']) ? Carbon::parse($data['hasta'])->endOfDay() : now()->endOfDay();
         $formato = ($data['periodo'] ?? 'diario') === 'mensual' ? 'Y-m' : 'Y-m-d';
         $movimientos = $this->movimientosLavado($desde, $hasta);
 
@@ -101,8 +101,8 @@ class ReporteController
             'desde' => ['nullable', 'date'],
             'hasta' => ['nullable', 'date', 'after_or_equal:desde'],
         ]);
-        $desde = isset($data['desde']) ? Carbon::parse($data['desde'], 'America/La_Paz')->startOfDay() : now('America/La_Paz')->startOfMonth();
-        $hasta = isset($data['hasta']) ? Carbon::parse($data['hasta'], 'America/La_Paz')->endOfDay() : now('America/La_Paz')->endOfDay();
+        $desde = isset($data['desde']) ? Carbon::parse($data['desde'])->startOfDay() : now()->startOfMonth();
+        $hasta = isset($data['hasta']) ? Carbon::parse($data['hasta'])->endOfDay() : now()->endOfDay();
         $bajas = Baja::query()->with(['area', 'tipoPrenda'])
             ->whereBetween('fecha_hora', [$desde, $hasta])->get();
         $faltantes = Alerta::query()->with(['area', 'tipoPrenda'])

@@ -6,6 +6,7 @@ use App\Domain\Usuarios\Models\Usuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class AuthController
 {
@@ -25,10 +26,16 @@ class AuthController
             return $this->invalidCredentials();
         }
 
-        if ($usuario->bloqueado_hasta !== null && $usuario->bloqueado_hasta->isFuture()) {
-            return response()->json([
-                'message' => 'Cuenta bloqueada por intentos fallidos. Contacte al Super Admin.',
-            ], 423);
+        if ($usuario->bloqueado_hasta !== null) {
+            if ($usuario->bloqueado_hasta->isFuture()) {
+                return response()->json([
+                    'message' => 'Cuenta bloqueada temporalmente por intentos fallidos. Intente de nuevo en '
+                        .$usuario->bloqueado_hasta->diffForHumans(['parts' => 1, 'short' => true])
+                        .' o solicite el desbloqueo al Super Admin.',
+                    'bloqueado_hasta' => $usuario->bloqueado_hasta->toIso8601String(),
+                ], 423);
+            }
+            $usuario->forceFill(['intentos_fallidos' => 0, 'bloqueado_hasta' => null])->save();
         }
 
         if (! Hash::check($credentials['password'], $usuario->password_hash)) {
@@ -39,7 +46,9 @@ class AuthController
                 $usuario->save();
 
                 return response()->json([
-                    'message' => 'Cuenta bloqueada por intentos fallidos. Contacte al Super Admin.',
+                    'message' => 'Cuenta bloqueada por 5 intentos fallidos. Intente de nuevo en 5 minutos '
+                        .'o solicite el desbloqueo al Super Admin.',
+                    'bloqueado_hasta' => $usuario->bloqueado_hasta->toIso8601String(),
                 ], 423);
             }
 
@@ -63,12 +72,14 @@ class AuthController
     public function cambiarPassword(Request $request): JsonResponse
     {
         $data = $request->validate([
+            'password_actual' => ['required', 'string'],
             'password_nueva' => [
                 'required',
                 'string',
                 'min:8',
                 'max:30',
                 'confirmed',
+                'different:password_actual',
                 'regex:/[A-Z]/',
                 'regex:/[a-z]/',
                 'regex:/[0-9]/',
@@ -78,10 +89,20 @@ class AuthController
 
         /** @var Usuario $usuario */
         $usuario = $request->user();
+
+        if (! Hash::check($data['password_actual'], $usuario->password_hash)) {
+            throw ValidationException::withMessages([
+                'password_actual' => 'La contraseña actual no es correcta.',
+            ]);
+        }
+
+        $tokenActual = $usuario->currentAccessToken()?->getKey();
         $usuario->forceFill([
             'password_hash' => Hash::make($data['password_nueva']),
             'debe_cambiar_password' => false,
         ])->save();
+        // Al cambiar la contraseña caducan las sesiones abiertas en otros equipos.
+        $usuario->tokens()->when($tokenActual !== null, fn ($q) => $q->whereKeyNot($tokenActual))->delete();
 
         return response()->json([
             'message' => 'Contraseña actualizada correctamente.',
